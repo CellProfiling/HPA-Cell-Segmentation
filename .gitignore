@@ -1,0 +1,9 @@
+.*DS_Store
+*.pyc
+__pycache__
+data
+*.swp
+*.swo
+tags
+.vscode
+*~
