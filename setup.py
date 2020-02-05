@@ -6,7 +6,7 @@ setuptools.setup(
     version='0.0.2',
     author_email='hao.xu@scilifelab.se',
     description='initially for hpa cell segmentation',
-    url='https://github.com/CellProfiling/ometif/tree/hpa-image-seg',
+    url='https://github.com/CellProfiling/HPA-Cell-image-segmentation/tree/hpa-image-seg',
     license='GNU',
     install_requires=[
         'click',

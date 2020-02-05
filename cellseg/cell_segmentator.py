@@ -54,18 +54,24 @@ class CellSegmentator(object):
         """
         if device != 'cuda' and device != 'cpu':
             raise ValueError(f'{device} is not a valid device (cuda/cpu)')
+        if not device == 'cpu':
+            try:
+                assert torch.cuda.is_available()
+            except AssertionError:
+                print("No GPU found, not set to cpu")
+                device = 'cpu'
+        self.device = device
 
         if isinstance(nuclei_model, str):
-            nuclei_model = torch.load(nuclei_model)
+            nuclei_model = torch.load(nuclei_model, map_location=torch.device(self.device))
         if isinstance(nuclei_model, torch.nn.DataParallel) and device == 'cpu':
             nuclei_model = nuclei_model.module
 
-        self.device = device
         self.nuclei_model = nuclei_model
 
         if cell_model:
             if isinstance(cell_model, str):
-                cell_model = torch.load(cell_model)
+                cell_model = torch.load(cell_model, , map_location=torch.device(self.device))
             if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
                 cell_model = cell_model.module
             self.cell_model = cell_model

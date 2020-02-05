@@ -1,6 +1,6 @@
 import click
 import imageio
-from cell_segmentator import HPA_CellImage_Seg
+from cellseg.cell_segmentator import HPA_CellImage_Seg
 
 @click.command()
 @click.option('--red_channel', prompt="microtubules image path", help='The image path of microtubules')
