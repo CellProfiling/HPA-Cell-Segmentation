@@ -63,7 +63,7 @@ class CellSegmentator(object):
         self.device = device
 
         if isinstance(nuclei_model, str):
-            nuclei_model = torch.load(nuclei_model, map_location=torch.device(self.device))
+            nuclei_model = torch.load(nuclei_model)
         if isinstance(nuclei_model, torch.nn.DataParallel) and device == 'cpu':
             nuclei_model = nuclei_model.module
 
@@ -71,7 +71,7 @@ class CellSegmentator(object):
 
         if cell_model:
             if isinstance(cell_model, str):
-                cell_model = torch.load(cell_model, map_location=torch.device(self.device))
+                cell_model = torch.load(cell_model)
             if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
                 cell_model = cell_model.module
             self.cell_model = cell_model
@@ -282,6 +282,7 @@ class CellSegmentator(object):
                 cell_label = watershed(-distance, cell_label, mask=sk)
                 cell_label = __fill_holes(cell_label)
                 cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
+                cell_label = skimage.measure.label(cell_label)
                 cell_label = remove_small_objects(cell_label, 5500)
                 cell_label = np.asarray(cell_label, dtype=np.uint16)
                 cell_label = skimage.measure.label(cell_label)              
