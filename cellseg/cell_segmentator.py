@@ -99,13 +99,12 @@ class CellSegmentator(object):
                 image = image/255
             self.target_shape = image.shape
             if len(image.shape) == 2:
-                image = skimage.transform.rescale(image, self.scale_factor)
-                nuc_image = np.dstack((image, image, image))
-            else:
-                image = skimage.transform.rescale(image, self.scale_factor, multichannel=True)
-                nuc_image = np.dstack((image[..., 2], image[..., 2], image[..., 2]))
+                image = np.dstack((image, image, image))
+            image = skimage.transform.rescale(image, self.scale_factor, multichannel=True)
+            nuc_image = np.dstack((image[..., 2], image[..., 2], image[..., 2]))
             if self.padding:
                 rows, cols = nuc_image.shape[:2]
+                self.scaled_shape = rows, cols
                 nuc_image = cv2.copyMakeBorder(nuc_image, 32, (32-rows%32), 32, (32-cols%32), cv2.BORDER_REFLECT)
             nuc_image = nuc_image.transpose([2, 0, 1])
             return nuc_image
@@ -173,7 +172,7 @@ class CellSegmentator(object):
     def restore_scaling_padding(self, n_prediction):
             n_prediction = n_prediction.transpose([1, 2, 0])
             if self.padding:
-                n_prediction = n_prediction[32: 32+self.target_shape[0], 32:32+self.target_shape[1], ... ]
+                n_prediction = n_prediction[32: 32+self.scaled_shape[0], 32:32+self.scaled_shape[1], ... ]
             if not self.scale_factor == 1:
                 n_prediction[...,0] = 0
                 #n_prediction = skimage.transform.rescale(n_prediction, 1/self.scale_factor)
@@ -200,9 +199,13 @@ class CellSegmentator(object):
                 image = imageio.imread(image)
                 image = image/255
             self.target_shape = image.shape
-            if self.scale_factor != 1.0:
-                image = skimage.transform.rescale(image, self.scale_factor, multichannel=True)
-            #cell_image = np.dstack((image[..., 0], np.zeros(image.shape[:-1]), image[..., 2]))
+            if len(image.shape) == 2:
+                cell_image = np.dstack((image, image, image))
+            cell_image = skimage.transform.rescale(image, self.scale_factor, multichannel=True)
+            if self.padding:
+                rows, cols = cell_image.shape[:2]
+                self.scaled_shape = rows, cols
+                cell_image = cv2.copyMakeBorder(cell_image, 32, (32-rows%32), 32, (32-cols%32), cv2.BORDER_REFLECT)
             cell_image = image.transpose([2, 0, 1])
             return cell_image
 
