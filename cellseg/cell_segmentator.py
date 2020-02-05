@@ -71,7 +71,7 @@ class CellSegmentator(object):
 
         if cell_model:
             if isinstance(cell_model, str):
-                cell_model = torch.load(cell_model, , map_location=torch.device(self.device))
+                cell_model = torch.load(cell_model, map_location=torch.device(self.device))
             if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
                 cell_model = cell_model.module
             self.cell_model = cell_model
