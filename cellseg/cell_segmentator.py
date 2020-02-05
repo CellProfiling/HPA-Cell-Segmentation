@@ -328,19 +328,6 @@ def download_with_url(url_string, file_path, unzip=False):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(os.path.dirname(file_path))
 
-    nuclei_model, cell_model = os.path.expanduser(nuclei_model), os.path.expanduser(cell_model)
-    if not os.path.exists(nuclei_model):
-        os.makedirs(os.path.dirname(nuclei_model),exist_ok=True)
-        print('Downloading nuclei segmentation model...')
-        nuclei_model_url = "https://kth.box.com/shared/static/l8z58wxkww9nn9syx9z90sclaga01mad.pth"
-        download_with_url(nuclei_model_url, nuclei_model)
-    if not os.path.exists(cell_model):
-        os.makedirs(os.path.dirname(cell_model),exist_ok=True)
-        print('Downloading cell segmentation model...')
-        cell_model_url = "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
-        download_with_url(cell_model_url, cell_model)
-
-
 class HPA_CellImage_Seg:
     def __init__(self, red_channel, nuclei_channel, nuclei_model, cell_model, batch_process=False):
         self.batch_process = batch_process
