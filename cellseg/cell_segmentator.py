@@ -22,7 +22,6 @@ from skimage.util import img_as_ubyte
 import urllib.request
 import click
 
-
 NORMALIZE = {'mean': [124 / 255, 117 / 255, 104 / 255],
              'std': [1 / (.0167 * 255)] * 3
             }
@@ -63,7 +62,7 @@ class CellSegmentator(object):
         self.device = device
 
         if isinstance(nuclei_model, str):
-            nuclei_model = torch.load(nuclei_model)
+            nuclei_model = torch.load(nuclei_model, map_location=torch.device(self.device))
         if isinstance(nuclei_model, torch.nn.DataParallel) and device == 'cpu':
             nuclei_model = nuclei_model.module
 
@@ -71,7 +70,7 @@ class CellSegmentator(object):
 
         if cell_model:
             if isinstance(cell_model, str):
-                cell_model = torch.load(cell_model)
+                cell_model = torch.load(cell_model, map_location=torch.device(self.device))
             if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
                 cell_model = cell_model.module
             self.cell_model = cell_model
