@@ -74,7 +74,6 @@ class CellSegmentator(object):
         #    cell_model = cell_model.module
         self.cell_model = cell_model.to(self.device)
 
-
         self.scale_factor = scale_factor
         self.padding = padding
         self.direct_processing = direct_processing
@@ -160,7 +159,7 @@ class CellSegmentator(object):
             preprocessed_images = map(_preprocess, images)
             predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
             predictions = map(lambda x: x.to('cpu').numpy()[0], predictions)
-            #predictions = map(lambda x: img_as_ubyte(x), predictions)
+            predictions = map(lambda x: img_as_ubyte(x), predictions)
             predictions = list(map(lambda x: self.restore_scaling_padding(x), predictions))
             if self.direct_processing:
                 return list(map(_postprocess, predictions))
@@ -174,9 +173,8 @@ class CellSegmentator(object):
                 n_prediction = n_prediction[32: 32+self.scaled_shape[0], 32:32+self.scaled_shape[1], ... ]
             if not self.scale_factor == 1:
                 n_prediction[...,0] = 0
-                n_prediction = skimage.transform.rescale(n_prediction, 1/self.scale_factor, multichannel=True)
-                #n_prediction = cv2.resize(n_prediction, (self.target_shape[0], self.target_shape[1]), interpolation=cv2.INTER_AREA)
-            imageio.imsave('/home/hao/.code/data/hpa_dataset_v2/test/sample/test.png', n_prediction)          
+                #n_prediction = skimage.transform.rescale(n_prediction, 1/self.scale_factor, multichannel=True)
+                n_prediction = cv2.resize(n_prediction, (self.target_shape[0], self.target_shape[1]), interpolation=cv2.INTER_AREA)         
             return n_prediction
 
 
@@ -206,8 +204,7 @@ class CellSegmentator(object):
                 rows, cols = cell_image.shape[:2]
                 self.scaled_shape = rows, cols
                 cell_image = cv2.copyMakeBorder(cell_image, 32, (32-rows%32), 32, (32-cols%32), cv2.BORDER_REFLECT)
-                print(cell_image.shape)
-            cell_image = image.transpose([2, 0, 1])
+            cell_image = cell_image.transpose([2, 0, 1])
             return cell_image
 
         def _segment_helper(imgs):
@@ -287,8 +284,8 @@ class CellSegmentator(object):
                 cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
                 cell_label = skimage.measure.label(cell_label)
                 cell_label = remove_small_objects(cell_label, 5500)
-                cell_label = np.asarray(cell_label, dtype=np.uint16)
-                cell_label = skimage.measure.label(cell_label)              
+                cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
+                #cell_label = skimage.measure.label(cell_label)              
                 
                 return cell_label
 
@@ -309,15 +306,15 @@ class CellSegmentator(object):
             return list(itertools.starmap(_postprocess, 
                         zip(nuclei_label, predictions)))
         else:
-            #nuclei_labels = self.label_nuclei(images, generator)
+            nuclei_labels = self.label_nuclei(images, generator)
             preprocessed_images = map(_preprocess, images)
             predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
             predictions = map(lambda x: x.to('cpu').numpy()[0], predictions)
             predictions = list(map(lambda x: self.restore_scaling_padding(x), predictions))
-            #predictions = map(lambda x: img_as_ubyte(x), predictions)
-            #cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
-            return predictions
-            #return cell_masks
+            predictions = map(lambda x: img_as_ubyte(x), predictions)
+            cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
+
+            return cell_masks
 
 
 def download_with_url(url_string, file_path, unzip=False):
@@ -374,5 +371,5 @@ class HPA_CellImage_Seg:
            print('The return value is list of cell mask data, following the red_channel images')
         else:
             cell_masks = cell_masks[0]
-            print('The return value is the labeled cell mask')
+            print('Output the labeled cell mask')
         return cell_masks 
