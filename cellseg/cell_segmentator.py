@@ -34,7 +34,7 @@ class CellSegmentator(object):
     """
     Uses pretrained DPN-Unet models to segment cells from images.
     """
-    def __init__(self, nuclei_model, cell_model=None,
+    def __init__(self, nuclei_model, cell_model,
                  scale_factor=1.0, device='cuda', padding=False, direct_processing=False):
         """
         Keyword arguments:
@@ -66,16 +66,15 @@ class CellSegmentator(object):
         if isinstance(nuclei_model, torch.nn.DataParallel) and device == 'cpu':
             nuclei_model = nuclei_model.module
 
-        self.nuclei_model = nuclei_model
+        self.nuclei_model = nuclei_model.to(self.device)
 
-        if cell_model:
-            if isinstance(cell_model, str):
-                cell_model = torch.load(cell_model, map_location=torch.device(self.device))
-            if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
-                cell_model = cell_model.module
-            self.cell_model = cell_model
-            self.cell_model = self.cell_model.to(self.device)
-        self.nuclei_model = self.nuclei_model.to(self.device)
+        if isinstance(cell_model, str):
+            cell_model = torch.load(cell_model, map_location=torch.device(self.device))
+        #if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
+        #    cell_model = cell_model.module
+        self.cell_model = cell_model.to(self.device)
+
+
         self.scale_factor = scale_factor
         self.padding = padding
         self.direct_processing = direct_processing
@@ -161,7 +160,7 @@ class CellSegmentator(object):
             preprocessed_images = map(_preprocess, images)
             predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
             predictions = map(lambda x: x.to('cpu').numpy()[0], predictions)
-            predictions = map(lambda x: img_as_ubyte(x), predictions)
+            #predictions = map(lambda x: img_as_ubyte(x), predictions)
             predictions = list(map(lambda x: self.restore_scaling_padding(x), predictions))
             if self.direct_processing:
                 return list(map(_postprocess, predictions))
@@ -175,8 +174,9 @@ class CellSegmentator(object):
                 n_prediction = n_prediction[32: 32+self.scaled_shape[0], 32:32+self.scaled_shape[1], ... ]
             if not self.scale_factor == 1:
                 n_prediction[...,0] = 0
-                #n_prediction = skimage.transform.rescale(n_prediction, 1/self.scale_factor)
-                n_prediction = cv2.resize(n_prediction, (self.target_shape[0], self.target_shape[1]), interpolation=cv2.INTER_AREA)           
+                n_prediction = skimage.transform.rescale(n_prediction, 1/self.scale_factor, multichannel=True)
+                #n_prediction = cv2.resize(n_prediction, (self.target_shape[0], self.target_shape[1]), interpolation=cv2.INTER_AREA)
+            imageio.imsave('/home/hao/.code/data/hpa_dataset_v2/test/sample/test.png', n_prediction)          
             return n_prediction
 
 
@@ -199,13 +199,14 @@ class CellSegmentator(object):
                 image = imageio.imread(image)
                 image = image/255
             self.target_shape = image.shape
-            if len(image.shape) == 2:
-                cell_image = np.dstack((image, image, image))
+            assert len(image.shape) == 3, "image should has 3 channels"
+                #cell_image = np.dstack((image, image, image))
             cell_image = skimage.transform.rescale(image, self.scale_factor, multichannel=True)
             if self.padding:
                 rows, cols = cell_image.shape[:2]
                 self.scaled_shape = rows, cols
                 cell_image = cv2.copyMakeBorder(cell_image, 32, (32-rows%32), 32, (32-cols%32), cv2.BORDER_REFLECT)
+                print(cell_image.shape)
             cell_image = image.transpose([2, 0, 1])
             return cell_image
 
@@ -308,15 +309,15 @@ class CellSegmentator(object):
             return list(itertools.starmap(_postprocess, 
                         zip(nuclei_label, predictions)))
         else:
-            nuclei_labels = self.label_nuclei(images, generator)
+            #nuclei_labels = self.label_nuclei(images, generator)
             preprocessed_images = map(_preprocess, images)
             predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
             predictions = map(lambda x: x.to('cpu').numpy()[0], predictions)
-            predictions = map(lambda x: img_as_ubyte(x), predictions)
             predictions = list(map(lambda x: self.restore_scaling_padding(x), predictions))
-            cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
-
-            return cell_masks
+            #predictions = map(lambda x: img_as_ubyte(x), predictions)
+            #cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
+            return predictions
+            #return cell_masks
 
 
 def download_with_url(url_string, file_path, unzip=False):
@@ -328,19 +329,6 @@ def download_with_url(url_string, file_path, unzip=False):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(os.path.dirname(file_path))
 
-    nuclei_model, cell_model = os.path.expanduser(nuclei_model), os.path.expanduser(cell_model)
-    if not os.path.exists(nuclei_model):
-        os.makedirs(os.path.dirname(nuclei_model),exist_ok=True)
-        print('Downloading nuclei segmentation model...')
-        nuclei_model_url = "https://kth.box.com/shared/static/l8z58wxkww9nn9syx9z90sclaga01mad.pth"
-        download_with_url(nuclei_model_url, nuclei_model)
-    if not os.path.exists(cell_model):
-        os.makedirs(os.path.dirname(cell_model),exist_ok=True)
-        print('Downloading cell segmentation model...')
-        cell_model_url = "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
-        download_with_url(cell_model_url, cell_model)
-
-
 class HPA_CellImage_Seg:
     def __init__(self, red_channel, nuclei_channel, nuclei_model, cell_model, batch_process=False):
         self.batch_process = batch_process
@@ -348,22 +336,20 @@ class HPA_CellImage_Seg:
             assert isinstance(red_channel, list)
             assert isinstance(nuclei_channel, list)
             assert len(red_channel)==len(nuclei_channel)
-            red_channel = [os.paht.expanduser(item) for item in red_channel]
         else:
             assert isinstance(red_channel, str)
             assert isinstance(nuclei_channel, str)
             red_channel = [red_channel]
             nuclei_channel = [nuclei_channel]
-        red_channel = [os.path.expanduser(item) for item in red_channel]
-        nuclei_channel = [os.path.expanduser(item) for item in nuclei_channel]
+        red_channel = [os.path.expanduser(item) for _, item in enumerate(red_channel)]
+        nuclei_channel = [os.path.expanduser(item) for _, item in enumerate(nuclei_channel)]
         
         self.red_channel = red_channel
         self.nuclei_channel = nuclei_channel
 
         mt_data = list(map(lambda x: imageio.imread(x), self.red_channel))
         nuclei_data = list(map(lambda x: imageio.imread(x), self.nuclei_channel))
-        image_shape, image_dtype = mt_data[0].shape, mt_data[0].dtype
-        empty_channel = [np.zeros(image_shape, dtype=image_dtype)] * len(mt_data)
+        empty_channel = [np.zeros(item.shape, dtype=item.dtype) for _, item in enumerate(mt_data)]
         self.cell_imgs = list(map(lambda item: np.dstack((item[0], item[1], item[2])), list(zip(mt_data, empty_channel, nuclei_data))))
 
         if not os.path.exists(nuclei_model):
@@ -382,7 +368,7 @@ class HPA_CellImage_Seg:
 
     
     def label_mask(self):
-        seg = CellSegmentator(self.nuclei_model, self.cell_model, scale_factor=0.25, padding=True)
+        seg = CellSegmentator(self.nuclei_model, self.cell_model, scale_factor=0.5, padding=True)
         cell_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
            print('The return value is list of cell mask data, following the red_channel images')
