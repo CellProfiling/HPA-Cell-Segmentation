@@ -1,5 +1,5 @@
 import click
-import imageio
+from skimage.io import imsave
 from cellseg.cell_segmentator import HPA_CellImage_Seg
 
 @click.command()
@@ -13,14 +13,7 @@ from cellseg.cell_segmentator import HPA_CellImage_Seg
 
 def execution(red_channel, blue_channel, nuclei_model, cell_model, labeled_mask):
     cell_mask = HPA_CellImage_Seg(red_channel, blue_channel, nuclei_model, cell_model).label_mask()
-    imageio.imsave(labeled_mask, cell_mask)
+    imsave(labeled_mask, cell_mask)
 
 if __name__=='__main__':
     execution()
-    """    red_channel = '../data/hpa_dataset_v2/test/sample/1949_A2_1_red.tif'
-    nuclei_channel = '../data/hpa_dataset_v2/test/sample/1949_A2_1_blue.tif'
-    nuclei_model, cell_model = '../models/new_test/dpn_unet_nuclei.pth', '../models/new_test/dpn_unet_cell.pth'
-
-
-    cell_mask = HPA_CellImage_Seg(red_channel, nuclei_channel, nuclei_model, cell_model).label_mask()
-    imageio.imsave('../data/hpa_dataset_v2/test/sample/198888_output.png', cell_mask)"""
