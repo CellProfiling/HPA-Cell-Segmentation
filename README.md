@@ -1,4 +1,4 @@
-# HPA-Cell-image-segmentation
+# HPA-Cell-Segmentation
 
 A class for cell segmentation using pretrained U-Nets.
 
