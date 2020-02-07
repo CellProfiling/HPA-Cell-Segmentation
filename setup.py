@@ -16,7 +16,7 @@ setuptools.setup(
     python_requirements='>3.6.8',
     author_email='hao.xu@scilifelab.se',
     description='initially for hpa cell segmentation',
-    url='https://github.com/CellProfiling/HPA-Cell-image-segmentation',
+    url='https://github.com/CellProfiling/HPA-Cell-Segmentation',
     license='GNU',
     packages=setuptools.find_packages(),
     dependency_links=[],
