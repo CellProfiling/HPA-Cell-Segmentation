@@ -252,7 +252,8 @@ class CellSegmentator(object):
 
                 # for hpa_image, to remove the small pseduo nuclei
                 # comment, found two separate nuclei regions (neighbour) with the same value. could be imporvoved.
-                nuclei_label = remove_small_objects(nuclei_label, 2500).astype(np.uint8)
+                nuclei_label = remove_small_objects(nuclei_label, 2500)
+                nuclei_label = skimage.measure.label(nuclei_label)
                 # till here
                 # this one is carefully set to highlight the cell border signal, iteration number. and then skeletonize to avoid trailoring the cell signals
                 #sk = skeletonize(ndi.morphology.binary_dilation(cell_seg[..., 1]/255.0>0.05, iterations=2))
@@ -287,7 +288,7 @@ class CellSegmentator(object):
                 cell_label = skimage.measure.label(cell_label)
                 cell_label = np.asarray(cell_label, dtype=np.uint16)              
                 
-                return cell_label
+                return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
      
         if generator:
             nuclei_label = self.label_nuclei(images, generator)
@@ -312,5 +313,6 @@ class CellSegmentator(object):
             predictions = list(map(lambda x: self.restore_scaling_padding(x), predictions))
             predictions = map(lambda x: img_as_ubyte(x), predictions)
             cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
-
+            
+            # each item in cell masks has two array, first is cell_label, second is nuclei_label
             return cell_masks
