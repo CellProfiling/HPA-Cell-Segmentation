@@ -286,8 +286,12 @@ class CellSegmentator(object):
                 cell_label = skimage.measure.label(cell_label)
                 cell_label = remove_small_objects(cell_label, 5500)               
                 cell_label = skimage.measure.label(cell_label)
-                cell_label = np.asarray(cell_label, dtype=np.uint16)              
-                
+                cell_label = np.asarray(cell_label, dtype=np.uint16)
+                nuclei_label = np.multiply(cell_label>0, nuclei_label) > 0
+                nuclei_label = skimage.measure.label(nuclei_label)
+                nuclei_label = remove_small_objects(nuclei_label, 2500)
+                nuclei_label = np.multiply(cell_label, nuclei_label>0)
+                                
                 return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
      
         if generator:
