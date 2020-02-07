@@ -313,7 +313,7 @@ class CellSegmentator(object):
             predictions = map(lambda x: img_as_ubyte(x), predictions)
             cell_masks = list(map(lambda item: _postprocess(item[0], item[1]), list(zip(nuclei_labels, predictions))))
 
-            return cell_masks
+            return cell_masks, nuclei_labels
 
 
 def download_with_url(url_string, file_path, unzip=False):
@@ -365,10 +365,11 @@ class HPA_CellImage_Seg:
     
     def label_mask(self):
         seg = CellSegmentator(self.nuclei_model, self.cell_model, scale_factor=0.5, padding=True)
-        cell_masks = seg.label_cells(self.cell_imgs)
+        cell_masks, nuclei_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
            print('The return value is list of cell mask data, following the red_channel images')
         else:
             cell_masks = cell_masks[0]
+            nuclei_masks = nuclei_masks[0]
             print('Output the labeled cell mask')
-        return cell_masks 
+        return cell_masks, nuclei_masks
