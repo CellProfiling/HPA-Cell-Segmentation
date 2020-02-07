@@ -8,9 +8,9 @@ except FileNotFoundError:
 
 setuptools.setup(
     name='cellseg',
-    version='0.0.2',
+    version='0.1.2',
     Author='Hao Xu',
-    python_requirements='>3.7.2',
+    python_requirements='>3.6.8',
     author_email='hao.xu@scilifelab.se',
     description='initially for hpa cell segmentation',
     url='https://github.com/CellProfiling/HPA-Cell-image-segmentation',
