@@ -4,12 +4,12 @@ try:
     with open('requirements.txt', 'r') as fd:
         requires = [l.strip() for l in fd.readlines()]
 except FileNotFoundError:
-    print('requirements.txt missing')
+    raise Exception('missing requirements.txt.')
 
 setuptools.setup(
-    name='cellseg',
+    name='hpacellseg',
     version='0.1.2',
-    Author='Hao Xu',
+    author='Hao Xu',
     python_requirements='>3.6.8',
     author_email='hao.xu@scilifelab.se',
     description='initially for hpa cell segmentation',
