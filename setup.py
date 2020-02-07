@@ -1,10 +1,13 @@
 import setuptools
 
+requirements = []
 try:
     with open('requirements.txt', 'r') as fd:
-        requires = [l.strip() for l in fd.readlines()]
+        requirements = [l.strip() for l in fd.readlines()]
 except FileNotFoundError:
-    raise Exception('missing requirements.txt.')
+    print('WARNING: missing requirements.txt.')
+
+requirements.append('pytorch_zoo@https://github.com/haoxusci/pytorch_zoo/archive/master.zip')
 
 setuptools.setup(
     name='hpacellseg',
@@ -17,6 +20,6 @@ setuptools.setup(
     license='GNU',
     packages=setuptools.find_packages(),
     dependency_links=[],
-    install_requires=requires,
+    install_requires=requirements,
     include_package_data=True,
     zip_safe=False)

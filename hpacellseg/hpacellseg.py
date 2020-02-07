@@ -34,7 +34,7 @@ def download_with_url(url_string, file_path, unzip=False):
             zip_ref.extractall(os.path.dirname(file_path))
 
 class HPACellSeg:
-    def __init__(self, cell_channel, nuclei_channel, nuclei_model, cell_model, batch_process=False):
+    def __init__(self, cell_channel, nuclei_channel, nuclei_model='./nuclei_model.pth', cell_model='./cell_model.pth', batch_process=False):
         self.batch_process = batch_process
         if self.batch_process:
             assert isinstance(cell_channel, list)

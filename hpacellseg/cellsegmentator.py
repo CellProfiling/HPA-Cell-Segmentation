@@ -57,7 +57,7 @@ class CellSegmentator(object):
             try:
                 assert torch.cuda.is_available()
             except AssertionError:
-                print("No GPU found, not set to cpu")
+                print("No GPU found, using CPU.")
                 device = 'cpu'
         self.device = device
 

@@ -5,11 +5,11 @@ A class for cell segmentation using pretrained U-Nets.
 # Steps
 - cd HPA-Cell-image-segmentation
 - git checkout hpa-image-seg
-- pip install .
+- pip3 install .
 
 # run example
 
-- python -m cellseg --cell_channel 'Path/to/1949_A2_1_red.tif' --nuclei_channel 'Path/to/1949_A2_1_blue.tif' --nuclei_model 'Path/to/models/dpn_unet_nuclei.pth' --cell_model 'Path/to/models/dpn_unet_cell.pth' --labeled_mask 'Path/to/output/mask.tif'
+- python3 -m hpacellseg --cell_channel 'Path/to/1949_A2_1_red.tif' --nuclei_channel 'Path/to/1949_A2_1_blue.tif' --nuclei_model 'Path/to/models/dpn_unet_nuclei.pth' --cell_model 'Path/to/models/dpn_unet_cell.pth' --labeled_mask 'Path/to/output/mask.tif'
     - cell_channel : image file path of microtubules image, like folder_path_to/1948_A1_2_red.tif.
     - nuclei_channel: image file path of nuclei image, like folder_path_to/1948_A1_2_blue.tif.
     - nuclei_model: model file path of nuclei model, with specifying model file name, like folder_path_to/dpn_unet_nuclei.pth; Will automatically download the model if the model file path is invalid.
