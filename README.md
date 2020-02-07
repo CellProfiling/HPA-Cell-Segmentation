@@ -5,7 +5,7 @@ A class for cell segmentation using pretrained U-Nets.
 # Steps
 - cd HPA-Cell-image-segmentation
 - git checkout hpa-image-seg
-- sh install.sh
+- pip install .
 
 # run example
 

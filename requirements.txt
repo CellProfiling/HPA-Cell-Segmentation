@@ -1,0 +1,10 @@
+scikit-image==0.16.2
+imageio==2.6.1
+scipy==1.4.1
+opencv-python==4.2.0.32
+pillow==6.2.1
+torch==1.4.0
+torchvision==0.5.0
+click==7.0
+pytorch_zoo
+pytorch_zoo@https://github.com/haoxusci/pytorch_zoo/archive/master.zip

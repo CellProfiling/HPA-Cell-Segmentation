@@ -1,16 +1,22 @@
 import setuptools
 
+try:
+    with open('requirements.txt', 'r') as fd:
+        requires = [l.strip() for l in fd.readlines()]
+except FileNotFoundError:
+    print('requirements.txt missing')
+
 setuptools.setup(
     name='cellseg',
-    version='0.0.1',
+    version='0.0.2',
     Author='Hao Xu',
+    python_requirements='>3.7.2',
     author_email='hao.xu@scilifelab.se',
     description='initially for hpa cell segmentation',
-    url='https://github.com/CellProfiling/HPA-Cell-image-segmentation/tree/hpa-image-seg',
+    url='https://github.com/CellProfiling/HPA-Cell-image-segmentation',
     license='GNU',
-    install_requires=[
-        'click',
-    ],
-
     packages=setuptools.find_packages(),
+    dependency_links=[],
+    install_requires=requires,
+    include_package_data=True,
     zip_safe=False)
