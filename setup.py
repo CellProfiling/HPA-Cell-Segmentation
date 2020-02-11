@@ -1,4 +1,5 @@
 import setuptools
+import hpacellseg
 
 requirements = []
 try:
@@ -11,7 +12,7 @@ requirements.append('pytorch_zoo@https://github.com/haoxusci/pytorch_zoo/archive
 
 setuptools.setup(
     name='hpacellseg',
-    version='0.1.2',
+    version=hpacellseg.__version__,
     author='Hao Xu',
     python_requires='>3.6.0',
     author_email='hao.xu@scilifelab.se',
