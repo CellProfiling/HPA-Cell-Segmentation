@@ -1,4 +1,6 @@
 import setuptools
+from pathlib import Path
+
 
 requirements = []
 try:
@@ -8,7 +10,7 @@ except FileNotFoundError:
     print('WARNING: missing requirements.txt.')
 
 requirements.append('pytorch_zoo@https://github.com/haoxusci/pytorch_zoo/archive/master.zip')
-
+VERSION = (Path(__file__).parent / "hpacellseg" / "VERSION" ).read_text().strip()
 setuptools.setup(
     name='hpacellseg',
     version='0.1.2',
