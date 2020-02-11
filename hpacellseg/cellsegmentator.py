@@ -1,4 +1,3 @@
-import os
 import torch
 import torch.nn
 import itertools
@@ -7,20 +6,15 @@ import torch.nn.functional as F
 import skimage.measure
 import skimage.morphology
 import skimage.transform
-import scipy.ndimage
 import imageio
 import cv2
-import multiprocessing
-from skimage.morphology import remove_small_objects, watershed, remove_small_holes, skeletonize, binary_closing,\
-    binary_dilation, binary_erosion, closing, disk
-from skimage import measure, exposure, segmentation
+from skimage.morphology import remove_small_objects, watershed, remove_small_holes, closing, disk
+from skimage import segmentation
 from scipy.ndimage.morphology import binary_fill_holes
-from skimage.measure import label, regionprops
 from skimage.filters import threshold_otsu
 from scipy import ndimage as ndi
 from skimage.util import img_as_ubyte
-import urllib.request
-import click
+
 
 NORMALIZE = {'mean': [124 / 255, 117 / 255, 104 / 255],
              'std': [1 / (.0167 * 255)] * 3

@@ -1,28 +1,9 @@
 import os
-import torch
-import torch.nn
-import itertools
 import numpy as np
-import torch.nn.functional as F
-import skimage.measure
-import skimage.morphology
-import skimage.transform
-import scipy.ndimage
 import imageio
-import cv2
-import multiprocessing
-from skimage.morphology import remove_small_objects, watershed, remove_small_holes, skeletonize, binary_closing,\
-    binary_dilation, binary_erosion, closing, disk
-from skimage import measure, exposure, segmentation
-from scipy.ndimage.morphology import binary_fill_holes
-from skimage.measure import label, regionprops
-from skimage.filters import threshold_otsu
-from scipy import ndimage as ndi
-from skimage.util import img_as_ubyte
 import urllib.request
-import click
-
 from hpacellseg.cellsegmentator import CellSegmentator
+
 
 def download_with_url(url_string, file_path, unzip=False):
     with urllib.request.urlopen(url_string) as response, open(file_path, 'wb') as out_file:
