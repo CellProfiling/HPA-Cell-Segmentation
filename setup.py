@@ -9,7 +9,6 @@ VERSION = (PROJECT_DIR / "hpacellseg" / "VERSION").read_text().strip()
 GITHUB_URL = "https://github.com/CellProfiling/HPA-Cell-Segmentation"
 DOWNLOAD_URL = f"{GITHUB_URL}/archive/master.zip"
 
-
 requirements = []
 try:
     with open("requirements.txt", "r") as fd:
