@@ -1,7 +1,7 @@
 import click
-from skimage.io import imsave
 from hpacellseg import __version__
 from hpacellseg.hpacellseg import HPACellSeg
+from PIL import Image
 
 @click.command()
 @click.option('--cell_channel', prompt="microtubules image path", help='The image path of microtubules')
@@ -13,9 +13,10 @@ from hpacellseg.hpacellseg import HPACellSeg
 @click.version_option(__version__, message="%(version)s")
 def main(cell_channel, nuclei_channel, nuclei_model, cell_model, cell_mask, nuclei_mask):
     cell_label, nuclei_label = HPACellSeg(cell_channel, nuclei_channel, nuclei_model, cell_model).label_mask()
-    imsave(cell_mask, cell_label)
+    Image.fromarray(cell_label).save(cell_mask, bits=16)
     if nuclei_mask:
-        imsave(nuclei_mask, nuclei_label)
+        Image.fromarray(nuclei_label).save(nuclei_mask, bits=16)
+
 
 if __name__=='__main__':
     main()
