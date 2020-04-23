@@ -78,9 +78,9 @@ class HPACellSeg:
         self.nuclei_model = nuclei_model
         self.cell_model = cell_model
 
-    def label_mask(self):
+    def label_mask(self, scale_factor=0.5):
         seg = CellSegmentator(
-            self.nuclei_model, self.cell_model, scale_factor=0.5, padding=True
+            self.nuclei_model, self.cell_model, scale_factor=scale_factor, padding=True
         )
         cell_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
