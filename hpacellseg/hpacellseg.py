@@ -24,7 +24,7 @@ class HPACellSeg:
 
     def __init__(
         self,
-        image_channels, #['microtubules.png', 'er.png/None', 'nuclei.png'] or list
+        image_channels,  # ['microtubules.png', 'er.png/None', 'nuclei.png'] or list
         nuclei_model="./nuclei_model.pth",
         cell_model="./cell_model.pth",
         batch_process=False,
