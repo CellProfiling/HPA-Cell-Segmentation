@@ -34,13 +34,16 @@ class HPACellSeg:
         if self.batch_process:
             assert isinstance(cell_channel, list)
             assert isinstance(nuclei_channel, list)
-            assert len(cell_channel) == len(channel2nd) == len(nuclei_channel)
+            if channel2nd:
+                assert isinstance(channel2nd, list)
+                assert len(cell_channel) == len(channel2nd) == len(nuclei_channel)
+            else:
+                assert len(cell_channel) == len(nuclei_channel)
         else:
             assert isinstance(cell_channel, str)
             assert isinstance(nuclei_channel, str)
             cell_channel = [cell_channel]
             if channel2nd:
-                assert isinstance(channel2nd, list)
                 assert isinstance(channel2nd, str)
                 channel2nd = [channel2nd]
             nuclei_channel = [nuclei_channel]
@@ -88,7 +91,7 @@ class HPACellSeg:
         self.nuclei_model = nuclei_model
         self.cell_model = cell_model
 
-    def label_mask(self, scale_factor=0.5):
+    def label_mask(self, scale_factor=0.25):
         seg = CellSegmentator(
             self.nuclei_model, self.cell_model, scale_factor=scale_factor, padding=True
         )
