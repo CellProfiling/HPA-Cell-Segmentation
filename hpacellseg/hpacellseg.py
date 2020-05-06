@@ -24,39 +24,44 @@ class HPACellSeg:
 
     def __init__(
         self,
-        cell_channel,
-        nuclei_channel,
+        image_channels, #['microtubules.png', 'er.png/None', 'nuclei.png'] or list
         nuclei_model="./nuclei_model.pth",
         cell_model="./cell_model.pth",
         batch_process=False,
     ):
+        cell_channel, channel2nd, nuclei_channel = image_channels
         self.batch_process = batch_process
         if self.batch_process:
             assert isinstance(cell_channel, list)
             assert isinstance(nuclei_channel, list)
-            assert len(cell_channel) == len(nuclei_channel)
+            assert len(cell_channel) == len(channel2nd) == len(nuclei_channel)
         else:
             assert isinstance(cell_channel, str)
             assert isinstance(nuclei_channel, str)
             cell_channel = [cell_channel]
+            if channel2nd:
+                assert isinstance(channel2nd, list)
+                assert isinstance(channel2nd, str)
+                channel2nd = [channel2nd]
             nuclei_channel = [nuclei_channel]
         cell_channel = [os.path.expanduser(item) for _, item in enumerate(cell_channel)]
         nuclei_channel = [
             os.path.expanduser(item) for _, item in enumerate(nuclei_channel)
         ]
 
-        self.cell_channel = cell_channel
-        self.nuclei_channel = nuclei_channel
-
-        mt_data = list(map(lambda x: imageio.imread(x), self.cell_channel))
-        nuclei_data = list(map(lambda x: imageio.imread(x), self.nuclei_channel))
-        empty_channel = [
-            np.zeros(item.shape, dtype=item.dtype) for _, item in enumerate(mt_data)
-        ]
+        mt_data = list(map(lambda x: imageio.imread(x), cell_channel))
+        nuclei_data = list(map(lambda x: imageio.imread(x), nuclei_channel))
+        if channel2nd:
+            channel2nd = [os.path.expanduser(item) for _, item in enumerate(channel2nd)]
+            second_channel = list(map(lambda x: imageio.imread(x), channel2nd))
+        else:
+            second_channel = [
+                np.zeros(item.shape, dtype=item.dtype) for _, item in enumerate(mt_data)
+            ]
         self.cell_imgs = list(
             map(
                 lambda item: np.dstack((item[0], item[1], item[2])),
-                list(zip(mt_data, empty_channel, nuclei_data)),
+                list(zip(mt_data, second_channel, nuclei_data)),
             )
         )
 
