@@ -76,9 +76,14 @@ class HPACellSeg:
         if not os.path.exists(cell_model):
             os.makedirs(os.path.dirname(cell_model), exist_ok=True)
             print("Downloading cell segmentation model...")
-            cell_model_url = (
+            if channel2nd: # place holder for 3channel model
+                cell_model_url = (
                 "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
             )
+            else:
+                cell_model_url = (
+                    "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
+                )
             download_with_url(cell_model_url, cell_model)
         self.nuclei_model = nuclei_model
         self.cell_model = cell_model
