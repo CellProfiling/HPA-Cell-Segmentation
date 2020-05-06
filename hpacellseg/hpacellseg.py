@@ -78,7 +78,7 @@ class HPACellSeg:
             print("Downloading cell segmentation model...")
             if channel2nd: # place holder for 3channel model
                 cell_model_url = (
-                "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
+                "https://kth.box.com/shared/static/hl2vuyi1lugywk6fr0drdz48w90gniyv.pth"
             )
             else:
                 cell_model_url = (
