@@ -39,8 +39,9 @@ from PIL import Image
 def main(
     cell_channel, nuclei_channel, nuclei_model, cell_model, cell_mask, nuclei_mask
 ):
+    image_channels = [cell_channel, None, nuclei_channel]
     cell_label, nuclei_label = HPACellSeg(
-        cell_channel, nuclei_channel, nuclei_model, cell_model
+        image_channels, nuclei_model, cell_model
     ).label_mask()
     Image.fromarray(cell_label).save(cell_mask, bits=16)
     if nuclei_mask:
