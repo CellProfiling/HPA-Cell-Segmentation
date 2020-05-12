@@ -79,7 +79,7 @@ class HPACellSeg:
         if not os.path.exists(cell_model):
             os.makedirs(os.path.dirname(cell_model), exist_ok=True)
             print("Downloading cell segmentation model...")
-            if channel2nd: # place holder for 3channel model
+            if channel2nd:  # place holder for 3channel model
                 cell_model_url = (
                 "https://kth.box.com/shared/static/hl2vuyi1lugywk6fr0drdz48w90gniyv.pth"
             )
@@ -93,12 +93,16 @@ class HPACellSeg:
 
     def label_mask(self, scale_factor=0.25):
         seg = CellSegmentator(
-            self.nuclei_model, self.cell_model, scale_factor=scale_factor, padding=True
+            self.nuclei_model,
+            self.cell_model,
+            scale_factor=scale_factor,
+            padding=True
         )
         cell_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
             print(
-                "The return value is list of cell mask data, following the cell_channel images"
+                "The return value is list of cell mask data, following the "
+                "cell_channel images"
             )
         else:
             cell_masks = cell_masks[0]

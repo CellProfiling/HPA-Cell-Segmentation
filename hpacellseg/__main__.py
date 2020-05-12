@@ -11,7 +11,9 @@ from PIL import Image
     help="The image path of microtubules",
 )
 @click.option(
-    "--nuclei_channel", prompt="nuclei image path", help="The image path of nuclei"
+    "--nuclei_channel",
+    prompt="nuclei image path",
+    help="The image path of nuclei"
 )
 @click.option(
     "--cell_mask",
@@ -37,12 +39,17 @@ from PIL import Image
 )
 @click.version_option(__version__, message="%(version)s")
 def main(
-    cell_channel, nuclei_channel, nuclei_model, cell_model, cell_mask, nuclei_mask
+    cell_channel,
+    nuclei_channel,
+    nuclei_model,
+    cell_model,
+    cell_mask,
+    nuclei_mask
 ):
     image_channels = [cell_channel, None, nuclei_channel]
     cell_label, nuclei_label = HPACellSeg(
         image_channels, nuclei_model, cell_model
-    ).label_mask()
+    ).label_mask(scale_factor=0.25)
     Image.fromarray(cell_label).save(cell_mask, bits=16)
     if nuclei_mask:
         Image.fromarray(nuclei_label).save(nuclei_mask, bits=16)
