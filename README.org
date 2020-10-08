@@ -1,0 +1,95 @@
+* HPA-Cell-Segmentation
+Tools for running cell segmentation using pretrained U-Nets.
+
+The package consists of two main parts:
+1. The =cellsegmentator= module which implements a class
+   =CellSegmentator= to make running segmentation from Python code
+   easier.
+2. The =hpacellseg= module which implements a class =HPACellSeg= to
+   segment all images in a directory.
+
+Both modules are located in the parent =hpacellseg= package.
+
+* Installation
+The following steps will install =hpacellseg= to your local =pip=
+installations folder together with all necessary dependencies.
+
+- =cd HPA-Cell-Segmentation=
+- =sh install.sh=
+
+You can verify the installation has worked by running
+#+begin_example
+python -c 'import hpacellseg'
+#+end_example
+in a terminal.
+
+
+* Usage
+
+** CellSegmentator class
+The `CellSegmentator` is made for programmaticly iterating through a
+list of images and returning the segmentations.
+
+*** Required arguments
+- nuclei_model
+
+  This should be a string containing the path to the nuclei-model weights.
+  If the weights do not exist at the path, they will be downloaded to it.
+- cell_model
+
+  This should be a string containing the path to the cell-model weights.
+  If the weights do not exist at the path, they will be downloaded to it.
+
+*** Optional/default arguments
+- scale_factor
+
+  This value determines how much the images should be
+  scaled before being fed to the models.
+  For HPA Cell images, a value of =0.25= is good.
+  Defaults to =1.0=.
+- device
+
+  Inform Torch which device to put the model on.
+  Valid values are 'cpu' or 'cuda'.
+  Defaults to 'cuda'.
+- padding
+
+  If True, add some padding before feeding the images to the neural networks.
+  This is not required but can make segmentations, especially cell segmentations,
+  more accurate.
+  Defaults to False.
+
+*** Methods
+The two segmentation functions are
+- label_nuclei
+- label_cells
+
+Both take a list of cell images as input.
+Each image should be on the format =(3, H, W)=.
+
+*** Example usage
+
+#+begin_src python
+import hpacellseg.hpacellseg.cellsegmentator as cellsegmentator
+
+images = load_images()  # Assuming load_images gives you a list of cell images
+NUC_MODEL = './nuclei-model.pth'
+CELL_MODEL = './cell-model.pth'
+segmentator = cellsegmentator.CellSegmentator(NUC_MODEL, CELL_MODEL, scale_factor=0.25)
+
+# For nuclei
+nuc_segmentations = segmentator.label_nuclei(images)
+# For full cells
+cell_segmentations = segmentator.label_cells(images)
+#+end_src
+
+
+* run example
+- `python3 -m hpacellseg --cell_channel 'path/to/1949_A2_1_red.tif' --nuclei_channel 'path/to/1949_A2_1_blue.tif' --cell_model 'path/to/models/dpn_unet_cell.pth' --nuclei_model 'path/to/models/dpn_unet_nuclei.pth' --cell_mask 'path/to/output/cell_mask.tif' --nuclei_mask 'path/to/output/nuclei_mask.tif'`
+    - cell\_channel : image file path of microtubules image, like folder\_path\_to/1948\_A1\_2_red.tif.
+    - nuclei_channel: image file path of nuclei image, like folder_path_to/1948_A1_2_blue.tif.
+    - nuclei_model: model file path of nuclei model, with specifying model file name, like folder_path_to/dpn_unet_nuclei.pth; Will automatically download the model if the model file path is invalid.
+    - cell_model: model file path of cell model, with specifying model file name, like folder_path_to/dpn_unet_cell.pth; Will automatically download the model if the model file path is invalid.
+    - cell_mask: cell mask file path, with specifying the file name, like folder_path_to/1948_A1_2_cell_mask.tif
+    - nuclei_mask: This is optional. if with, this is nuclei mask file path, with specifying the file name, like folder_path_to/1948_A1_2_nuclei_mask.tif
+- use .tif image for output for cell mask, like mask.tif. .tif image supports 16bit depth image

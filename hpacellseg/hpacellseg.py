@@ -1,22 +1,12 @@
 """HPA Cell Atlas Image Segmentation."""
 import os
+
 import imageio
-import urllib.request
 import numpy as np
 from hpacellseg.cellsegmentator import CellSegmentator
 
-
-def download_with_url(url_string, file_path, unzip=False):
-    """Download file with a link."""
-    with urllib.request.urlopen(url_string) as response, open(
-        file_path, "wb"
-    ) as out_file:
-        data = response.read()  # a `bytes` object
-        out_file.write(data)
-
-    if unzip:
-        with zipfile.ZipFile(file_path, "r") as zip_ref:
-            zip_ref.extractall(os.path.dirname(file_path))
+from constants import *
+from utils import download_with_url
 
 
 class HPACellSeg:
@@ -29,6 +19,7 @@ class HPACellSeg:
         cell_model="./cell_model.pth",
         batch_process=False,
     ):
+        """Run segmentation on all images in a folder."""
         cell_channel, channel2nd, nuclei_channel = image_channels
         self.batch_process = batch_process
         if self.batch_process:
@@ -71,32 +62,22 @@ class HPACellSeg:
         if not os.path.exists(nuclei_model):
             os.makedirs(os.path.dirname(nuclei_model), exist_ok=True)
             print("Downloading nuclei segmentation model...")
-            nuclei_model_url = (
-                "https://kth.box.com/shared/static/l8z58wxkww9nn9syx9z90sclaga01mad.pth"
-            )
-            download_with_url(nuclei_model_url, nuclei_model)
+            download_with_url(NUCLEI_MODEL_URL, nuclei_model)
 
         if not os.path.exists(cell_model):
             os.makedirs(os.path.dirname(cell_model), exist_ok=True)
             print("Downloading cell segmentation model...")
             if channel2nd:  # place holder for 3channel model
-                cell_model_url = (
-                "https://kth.box.com/shared/static/hl2vuyi1lugywk6fr0drdz48w90gniyv.pth"
-            )
+                cell_model_url = MULTI_CHANNEL_CELL_MODEL_URL
             else:
-                cell_model_url = (
-                    "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
-                )
-            download_with_url(cell_model_url, cell_model)
+                cell_model_url = CELL_MODEL_URL
+            download_with_url(CELL_MODEL_URL, cell_model)
         self.nuclei_model = nuclei_model
         self.cell_model = cell_model
 
     def label_mask(self, scale_factor=0.25):
         seg = CellSegmentator(
-            self.nuclei_model,
-            self.cell_model,
-            scale_factor=scale_factor,
-            padding=True
+            self.nuclei_model, self.cell_model, scale_factor=scale_factor, padding=True
         )
         cell_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
