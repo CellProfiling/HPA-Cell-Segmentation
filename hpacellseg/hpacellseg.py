@@ -5,8 +5,8 @@ import imageio
 import numpy as np
 from hpacellseg.cellsegmentator import CellSegmentator
 
-from constants import *
-from utils import download_with_url
+from hpacellseg.constants import *
+from hpacellseg.utils import download_with_url
 
 
 class HPACellSeg:
@@ -17,6 +17,7 @@ class HPACellSeg:
         image_channels,  # ['microtubules.png', 'er.png/None', 'nuclei.png'] or list
         nuclei_model="./nuclei_model.pth",
         cell_model="./cell_model.pth",
+        folder=None,
         batch_process=False,
     ):
         """Run segmentation on all images in a folder."""

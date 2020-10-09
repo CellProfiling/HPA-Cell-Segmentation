@@ -12,18 +12,13 @@ import skimage.transform
 import torch
 import torch.nn
 import torch.nn.functional as F
-from scipy.ndimage.morphology import binary_fill_holes
-from skimage import exposure, measure, segmentation
+from hpacellseg.constants import CELL_MODEL_URL, NUCLEI_MODEL_URL
+from hpacellseg.utils import download_with_url
+from skimage import segmentation
 from skimage.filters import threshold_otsu
-from skimage.measure import label, regionprops
-from skimage.morphology import (binary_closing, binary_dilation,
-                                binary_erosion, closing, disk,
-                                remove_small_holes, remove_small_objects,
-                                skeletonize, watershed)
+from skimage.morphology import (closing, disk, remove_small_holes,
+                                remove_small_objects, watershed)
 from skimage.util import img_as_ubyte
-
-from constants import CELL_MODEL_URL, NUCLEI_MODEL_URL
-from utils import download_with_url
 
 NORMALIZE = {"mean": [124 / 255, 117 / 255, 104 / 255], "std": [1 / (0.0167 * 255)] * 3}
 
@@ -247,80 +242,67 @@ class CellSegmentator(object):
                 mask_img[mask_img <= threshold] = 0
                 mask_img[mask_img > threshold] = 1
                 mask_img = mask_img.astype(np.bool)
-                mask_img = morphology.remove_small_holes(mask_img, 1000)
-                mask_img = morphology.remove_small_objects(mask_img, 8).astype(np.uint8)
+                mask_img = remove_small_holes(mask_img, 1000)
+                mask_img = remove_small_objects(mask_img, 8).astype(np.uint8)
                 markers = ndi.label(img_copy, output=np.uint32)[0]
                 labeled_array = watershed(
                     mask_img, markers, mask=mask_img, watershed_line=True
                 )
                 return labeled_array
 
-                nuclei_label = __wsh(
-                    nuclei_seg[..., 2] / 255.0,
-                    0.4,
-                    1 - (nuclei_seg[..., 1] + cell_seg[..., 1]) / 255.0 > 0.05,
-                    nuclei_seg[..., 2] / 255,
-                    threshold_adjustment=-0.25,
-                    small_object_size_cutoff=500,
-                )
+            nuclei_label = __wsh(
+                nuclei_seg[..., 2] / 255.0,
+                0.4,
+                1 - (nuclei_seg[..., 1] + cell_seg[..., 1]) / 255.0 > 0.05,
+                nuclei_seg[..., 2] / 255,
+                threshold_adjustment=-0.25,
+                small_object_size_cutoff=500,
+            )
 
-                # for hpa_image, to remove the small pseduo nuclei
-                # comment, found two separate nuclei regions (neighbour) with the same value. could be imporvoved.
-                nuclei_label = remove_small_objects(nuclei_label, 2500)
-                nuclei_label = skimage.measure.label(nuclei_label)
-                # till here
-                # this one is carefully set to highlight the cell border signal, iteration number. and then skeletonize to avoid trailoring the cell signals
-                # sk = skeletonize(ndi.morphology.binary_dilation(cell_seg[..., 1]/255.0>0.05, iterations=2))
-                # this is to remove the cell borders' signal from cell mask. could use np.logical_and with some revision, to replace this func. Tuned for segmentation hpa images
-                # sk = np.subtract(np.asarray(cell_seg[...,2]/255>0.2, dtype=np.int8), np.asarray(sk, dtype=np.int8))
-                # try to use threshold_otsu instead of a set value
-                threshold_value = max(
-                    0.22, threshold_otsu(cell_seg[..., 2] / 255) * 0.5
+            # for hpa_image, to remove the small pseduo nuclei
+            nuclei_label = remove_small_objects(nuclei_label, 2500)
+            nuclei_label = skimage.measure.label(nuclei_label)
+            # this is to remove the cell borders' signal from cell mask.
+            # could use np.logical_and with some revision, to replace this func.
+            # Tuned for segmentation hpa images
+            threshold_value = max(0.22, threshold_otsu(cell_seg[..., 2] / 255) * 0.5)
+            # exclude the green area first
+            cell_region = np.multiply(
+                cell_seg[..., 2] / 255 > threshold_value,
+                np.invert(np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8)),
+            )
+            sk = np.asarray(cell_region, dtype=np.int8)
+            distance = np.clip(
+                cell_seg[..., 2], 255 * threshold_value, cell_seg[..., 2]
+            )
+            cell_label = watershed(-distance, nuclei_label, mask=sk)
+            cell_label = remove_small_objects(cell_label, 5500).astype(np.uint8)
+            selem = disk(6)
+            cell_label = closing(cell_label, selem)
+            cell_label = __fill_holes(cell_label)
+            # this part is to use green channel, and extend cell label to green channel
+            # benefit is to exclude cells clear on border but without nucleus
+            sk = np.asarray(
+                np.add(
+                    np.asarray(cell_label > 0, dtype=np.int8),
+                    np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8),
                 )
-                # exclude the green area first
-                cell_region = np.multiply(
-                    cell_seg[..., 2] / 255 > threshold_value,
-                    np.invert(np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8)),
-                )
-                # cell_region = np.add(np.asarray(cell_seg[...,2]/255>threshold_value, dtype=np.int8), np.asarray(cell_seg[...,1]/255>0.05, dtype=np.int8)) > 0
-                # sk = np.subtract(np.asarray(cell_seg[...,2]/255>threshold_value, dtype=np.int8), np.asarray(sk, dtype=np.int8), dtype=np.int8)
-                sk = np.asarray(cell_region, dtype=np.int8)
-                # sk = np.clip(sk, 0, 1.0)
-                # discard distance map
-                ##distance = ndi.distance_transform_edt(sk)
-                ##cell_label = watershed(-distance, nuclei_label, mask=sk)
-                # use cell blue channel as distance map directly
-                distance = np.clip(
-                    cell_seg[..., 2], 255 * threshold_value, cell_seg[..., 2]
-                )
-                cell_label = watershed(-distance, nuclei_label, mask=sk)
-                cell_label = remove_small_objects(cell_label, 5500).astype(np.uint8)
-                selem = disk(6)
-                cell_label = closing(cell_label, selem)
-                cell_label = __fill_holes(cell_label)
-                # this part is to use green channel, and extend cell label to green channel
-                # benefit is to exclude cells clear on border but without nucleus
-                sk = np.asarray(
-                    np.add(
-                        np.asarray(cell_label > 0, dtype=np.int8),
-                        np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8),
-                    )
-                    > 0,
-                    dtype=np.int8,
-                )
-                cell_label = watershed(-distance, cell_label, mask=sk)
-                cell_label = __fill_holes(cell_label)
-                cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
-                cell_label = skimage.measure.label(cell_label)
-                cell_label = remove_small_objects(cell_label, 5500)
-                cell_label = skimage.measure.label(cell_label)
-                cell_label = np.asarray(cell_label, dtype=np.uint16)
-                nuclei_label = np.multiply(cell_label > 0, nuclei_label) > 0
-                nuclei_label = skimage.measure.label(nuclei_label)
-                nuclei_label = remove_small_objects(nuclei_label, 2500)
-                nuclei_label = np.multiply(cell_label, nuclei_label > 0)
+                > 0,
+                dtype=np.int8,
+            )
+            cell_label = watershed(-distance, cell_label, mask=sk)
+            cell_label = __fill_holes(cell_label)
+            cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
+            cell_label = skimage.measure.label(cell_label)
+            cell_label = remove_small_objects(cell_label, 5500)
+            cell_label = skimage.measure.label(cell_label)
+            cell_label = np.asarray(cell_label, dtype=np.uint16)
+            nuclei_label = np.multiply(cell_label > 0, nuclei_label) > 0
+            nuclei_label = skimage.measure.label(nuclei_label)
+            nuclei_label = remove_small_objects(nuclei_label, 2500)
+            nuclei_label = np.multiply(cell_label, nuclei_label > 0)
 
-                return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
+            return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
 
         nuclei_labels = self.label_nuclei(images)
         preprocessed_images = map(_preprocess, images)

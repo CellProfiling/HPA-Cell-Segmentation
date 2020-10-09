@@ -25,7 +25,6 @@ in a terminal.
 
 
 * Usage
-
 ** CellSegmentator class
 The `CellSegmentator` is made for programmaticly iterating through a
 list of images and returning the segmentations.
@@ -70,7 +69,7 @@ Each image should be on the format =(3, H, W)=.
 *** Example usage
 
 #+begin_src python
-import hpacellseg.hpacellseg.cellsegmentator as cellsegmentator
+import hpacellseg.cellsegmentator as cellsegmentator
 
 images = load_images()  # Assuming load_images gives you a list of cell images
 NUC_MODEL = './nuclei-model.pth'
@@ -82,6 +81,8 @@ nuc_segmentations = segmentator.label_nuclei(images)
 # For full cells
 cell_segmentations = segmentator.label_cells(images)
 #+end_src
+
+** HPACellSeg class
 
 
 * run example

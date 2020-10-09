@@ -3,7 +3,7 @@ from pathlib import Path
 from setuptools import find_packages, setup
 
 PROJECT_DIR = Path(__file__).parent.resolve()
-README_FILE = PROJECT_DIR / "README.md"
+README_FILE = PROJECT_DIR / "README.org"
 LONG_DESCR = README_FILE.read_text(encoding="utf-8")
 VERSION = (PROJECT_DIR / "hpacellseg" / "VERSION").read_text().strip()
 GITHUB_URL = "https://github.com/CellProfiling/HPA-Cell-Segmentation"
