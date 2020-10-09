@@ -44,7 +44,7 @@ class CellSegmentator(object):
         device -- The device on which to run the models.
                   This should either be 'cpu' or 'cuda' (default: 'cuda').
         padding -- Whether to add padding to the images before feeding the
-                   images to the network.
+                   images to the network. (default: False)
         """
         if device != "cuda" and device != "cpu":
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")

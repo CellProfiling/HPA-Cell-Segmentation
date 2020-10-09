@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+./hpacellseg/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -122,6 +123,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+./hpacellseg/.mypy_cache
 .dmypy.json
 dmypy.json
 
@@ -130,3 +132,6 @@ dmypy.json
 
 # Visual Studio Code
 .vscode/*
+
+tags
+TAGS

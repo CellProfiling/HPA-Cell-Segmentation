@@ -26,7 +26,7 @@ in a terminal.
 
 * Usage
 ** CellSegmentator class
-The `CellSegmentator` is made for programmaticly iterating through a
+The =CellSegmentator= is made for programmaticly iterating through a
 list of images and returning the segmentations.
 
 *** Required arguments
