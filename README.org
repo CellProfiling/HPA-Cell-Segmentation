@@ -61,10 +61,23 @@ list of images and returning the segmentations.
 *** Methods
 The two segmentation functions are
 - label_nuclei
+
+  Returns the neural network output of the nuclei segmentation. The
+  images are on the format (3, H, W). The three channels are as
+  follows [<Unused>, touching-nuclei, Nuclei-segmentation].
+
 - label_cells
 
+  Returns the neural network output of the cell segmentations. The
+  images are on the format (3, H, W). The three channels for the cell
+  segmentation are as follows [<Unused>, touching-cells,
+  Cell-segmentation].
+
 Both take a list of cell images as input.
-Each image should be on the format =(3, H, W)=.
+Each input image should be on the format =(3, H, W)=.
+
+Note that both these functions assume that all input images are of the
+same shape!!
 
 *** Example usage
 

@@ -87,8 +87,8 @@ class CellSegmentator(object):
 
     def label_nuclei(self, images):
         """
-
         Label the nuclei in all the images in the list.
+
         Returns either a list of labeled images or a generator which will
         yield a single labeled image at a time.
 
@@ -304,18 +304,10 @@ class CellSegmentator(object):
 
             return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
 
-        nuclei_labels = self.label_nuclei(images)
         preprocessed_images = map(_preprocess, images)
         predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
-        predictions = list(map(self.restore_scaling_padding, predictions))
-        predictions = map(img_as_ubyte, predictions)
-        cell_masks = list(
-            map(
-                lambda item: _postprocess(item[0], item[1]),
-                list(zip(nuclei_labels, predictions)),
-            )
-        )
+        predictions = map(self.restore_scaling_padding, predictions)
+        predictions = list(map(img_as_ubyte, predictions))
 
-        # each item in cell masks has two array, first is cell_label, second is nuclei_label
-        return cell_masks
+        return predictions
