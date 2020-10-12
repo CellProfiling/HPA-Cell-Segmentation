@@ -1,14 +1,11 @@
 * HPA-Cell-Segmentation
 Tools for running cell segmentation using pretrained U-Nets.
 
-The package consists of two main parts:
+The package consists of two parts:
 1. The =cellsegmentator= module which implements a class
    =CellSegmentator= to make running segmentation from Python code
    easier.
-2. The =hpacellseg= module which implements a class =HPACellSeg= to
-   segment all images in a directory.
-
-Both modules are located in the parent =hpacellseg= package.
+2. A command line tool that can be used to segment a single image.
 
 * Installation
 The following steps will install =hpacellseg= to your local =pip=
@@ -96,9 +93,9 @@ cell_segmentations = segmentator.label_cells(images)
 #+end_src
 
 ** HPACellSeg class
+This class is intended for use by the =__main__= function of this package.
 
-
-* run example
+*** Run example
 - `python3 -m hpacellseg --cell_channel 'path/to/1949_A2_1_red.tif' --nuclei_channel 'path/to/1949_A2_1_blue.tif' --cell_model 'path/to/models/dpn_unet_cell.pth' --nuclei_model 'path/to/models/dpn_unet_nuclei.pth' --cell_mask 'path/to/output/cell_mask.tif' --nuclei_mask 'path/to/output/nuclei_mask.tif'`
     - cell\_channel : image file path of microtubules image, like folder\_path\_to/1948\_A1\_2_red.tif.
     - nuclei_channel: image file path of nuclei image, like folder_path_to/1948_A1_2_blue.tif.

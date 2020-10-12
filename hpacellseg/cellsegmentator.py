@@ -12,7 +12,7 @@ import skimage.transform
 import torch
 import torch.nn
 import torch.nn.functional as F
-from hpacellseg.constants import CELL_MODEL_URL, NUCLEI_MODEL_URL
+from hpacellseg.constants import MULTI_CHANNEL_CELL_MODEL_URL, NUCLEI_MODEL_URL
 from hpacellseg.utils import download_with_url
 from skimage import segmentation
 from skimage.filters import threshold_otsu
@@ -76,7 +76,7 @@ class CellSegmentator(object):
                 print(
                     f"Could not find {cell_model}. Downloading it now", file=sys.stderr
                 )
-                download_with_url(CELL_MODEL_URL, cell_model)
+                download_with_url(MULTI_CHANNEL_CELL_MODEL_URL, cell_model)
             cell_model = torch.load(cell_model, map_location=torch.device(self.device))
         # if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
         #    cell_model = cell_model.module
