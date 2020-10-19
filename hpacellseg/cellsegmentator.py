@@ -154,7 +154,7 @@ class CellSegmentator(object):
             # TODO: Figure out good value for remove small objects.
             # mask_img = morphology.remove_small_objects(mask_img, 8)
             mask_img = mask_img.astype(np.uint8)
-            nuclei_label = morphology.watershed(
+            nuclei_label = segmentation.watershed(
                 mask_img, markers, mask=mask_img, watershed_line=True
             )
             return nuclei_label
@@ -279,7 +279,7 @@ class CellSegmentator(object):
                 mask_img = morphology.remove_small_holes(mask_img, 1000)
                 mask_img = morphology.remove_small_objects(mask_img, 8).astype(np.uint8)
                 markers = ndi.label(img_copy, output=np.uint32)[0]
-                labeled_array = morphology.watershed(
+                labeled_array = segmentation.watershed(
                     mask_img, markers, mask=mask_img, watershed_line=True
                 )
                 return labeled_array
@@ -308,7 +308,7 @@ class CellSegmentator(object):
             distance = np.clip(
                 cell_seg[..., 2], 255 * threshold_value, cell_seg[..., 2]
             )
-            cell_label = morphology.watershed(-distance, nuclei_label, mask=sk)
+            cell_label = segmentation.watershed(-distance, nuclei_label, mask=sk)
             cell_label = morphology.remove_small_objects(cell_label, 5500)
             cell_label = cell_label.astype(np.uint8)
             selem = morphology.disk(6)
@@ -324,7 +324,7 @@ class CellSegmentator(object):
                 > 0,
                 dtype=np.int8,
             )
-            cell_label = morphology.watershed(-distance, cell_label, mask=sk)
+            cell_label = segmentation.watershed(-distance, cell_label, mask=sk)
             cell_label = __fill_holes(cell_label)
             cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
             cell_label = measure.label(cell_label)
