@@ -27,8 +27,10 @@ class HPACellSeg:
         image_channels,  # ['microtubules.png', 'er.png/None', 'nuclei.png'] or list
         nuclei_model="./nuclei_model.pth",
         cell_model="./cell_model.pth",
+        device='cuda',
         batch_process=False,
     ):
+        self.device = device
         cell_channel, channel2nd, nuclei_channel = image_channels
         self.batch_process = batch_process
         if self.batch_process:
@@ -96,6 +98,7 @@ class HPACellSeg:
             self.nuclei_model,
             self.cell_model,
             scale_factor=scale_factor,
+            device=self.device,
             padding=True
         )
         cell_masks = seg.label_cells(self.cell_imgs)
