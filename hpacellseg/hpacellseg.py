@@ -109,5 +109,5 @@ class HPACellSeg:
             )
         else:
             cell_masks = cell_masks[0]
-            print("Output the labeled cell mask")
+            #print("Output the labeled cell mask")
         return cell_masks
