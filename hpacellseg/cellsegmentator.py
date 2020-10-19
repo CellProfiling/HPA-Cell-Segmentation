@@ -46,7 +46,7 @@ class CellSegmentator(object):
         device -- The device on which to run the models.
                   This should either be 'cpu' or 'cuda' (default: 'cuda').
         """
-        if device != "cuda" and device != "cpu":
+        if device != "cuda" and device != "cpu" and 'cuda' not in device:
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")
         if not device == "cpu":
             try:
