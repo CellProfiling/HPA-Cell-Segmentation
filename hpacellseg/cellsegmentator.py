@@ -35,8 +35,8 @@ class CellSegmentator(object):
 
     def __init__(
         self,
-        nuclei_model,
-        cell_model,
+        nuclei_model='./nuclei_model.pth',
+        cell_model='./cell_model.pth',
         scale_factor=0.25,
         device="cuda",
         padding=False,
@@ -128,7 +128,7 @@ class CellSegmentator(object):
             else:
                 assert len(microtubule_images) == len(nuclei_images)
         else:
-            assert isinstance(microtubule_images, str)
+            assert isinstance(microtubule_images, str) #raise error
             assert isinstance(nuclei_images, str)
             microtubule_images = [microtubule_images]
             if er_images:
@@ -182,7 +182,6 @@ class CellSegmentator(object):
         def _preprocess(image):
             if isinstance(image, str):
                 image = imageio.imread(image)
-                image = image / 255
             self.target_shape = image.shape
             if len(image.shape) == 2:
                 image = np.dstack((image, image, image))
@@ -393,16 +392,16 @@ class CellSegmentator(object):
             nuclei_label = remove_small_objects(nuclei_label, 2500)
             nuclei_label = np.multiply(cell_label, nuclei_label > 0)
 
-            return cell_label, np.asarray(nuclei_label, dtype=np.uint16)
+            return cell_label
         
         self.batch_check(images)
-        preprocessed_images = map(_preprocess, images)
+        preprocessed_images = map(_preprocess, self.cell_imgs)
         predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
         predictions = map(self.restore_scaling_padding, predictions)
         predictions = list(map(util.img_as_ubyte, predictions))
         if self.post_processing:
-            nuclei_labels = self.label_nuclei(images)
+            nuclei_labels = self.label_nuclei(self.cell_imgs)
             predictions = list(
                 map(
                     lambda item: _postprocess(item[0], item[1]),
