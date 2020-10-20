@@ -17,7 +17,7 @@ from hpacellseg.utils import download_with_url
 from skimage import segmentation
 from skimage.filters import threshold_otsu
 from skimage.morphology import (closing, disk, remove_small_holes,
-                                remove_small_objects, watershed)
+                                remove_small_objects)
 from skimage.util import img_as_ubyte
 
 NORMALIZE = {"mean": [124 / 255, 117 / 255, 104 / 255], "std": [1 / (0.0167 * 255)] * 3}
@@ -46,7 +46,7 @@ class CellSegmentator(object):
         padding -- Whether to add padding to the images before feeding the
                    images to the network. (default: False)
         """
-        if device != "cuda" and device != "cpu":
+        if device != "cuda" and device != "cpu" and 'cuda' not in device:
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")
         if device != "cpu":
             try:
@@ -134,12 +134,57 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        preprocessed_images = map(_preprocess, images)
-        predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
-        predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
-        predictions = map(img_as_ubyte, predictions)
-        predictions = list(map(self.restore_scaling_padding, predictions))
-        return predictions
+        def _postprocess(n_prediction):
+            n_prediction = n_prediction.transpose([1, 2, 0])
+            n_prediction = skimage.transform.rescale(
+                n_prediction, 1 / self.scale_factor
+            )
+            img_copy = np.copy(n_prediction[..., 2])
+            borders = (n_prediction[..., 1] > 0.05).astype(np.uint8)
+            m = img_copy * (1 - borders)
+
+            img_copy[m <= LOW_THRESHOLD] = 0
+            img_copy[m > LOW_THRESHOLD] = 1
+            img_copy = img_copy.astype(np.bool)
+            img_copy = morphology.binary_erosion(img_copy)
+            # TODO: Add parameter for remove small object size for
+            #       differently scaled images.
+            # img_copy = morphology.remove_small_objects(img_copy, 500)
+            img_copy = img_copy.astype(np.uint8)
+            markers = measure.label(img_copy).astype(np.uint32)
+
+            mask_img = np.copy(n_prediction[..., 2])
+            mask_img[mask_img <= HIGH_THRESHOLD] = 0
+            mask_img[mask_img > HIGH_THRESHOLD] = 1
+            mask_img = mask_img.astype(np.bool)
+            mask_img = morphology.remove_small_holes(mask_img, 1000)
+            # TODO: Figure out good value for remove small objects.
+            # mask_img = morphology.remove_small_objects(mask_img, 8)
+            mask_img = mask_img.astype(np.uint8)
+            nuclei_label = segmentation.watershed(
+                mask_img, markers, mask=mask_img, watershed_line=True
+            )
+            return nuclei_label
+
+        if generator:
+            mapping = map(_preprocess, images)
+            mapping = map(lambda x: _segment_helper([x]), mapping)
+            mapping = map(lambda x: x.to("cpu").numpy()[0], mapping)
+            mapping = map(_postprocess, mapping)
+            return mapping
+        else:
+            preprocessed_images = list(map(_preprocess, images))
+            predictions = list(map(lambda x: _segment_helper([x]), preprocessed_images))
+            predictions = list(map(lambda x: x.to("cpu").numpy()[0], predictions))
+            predictions = list(map(lambda x: img_as_ubyte(x), predictions))
+            predictions = list(
+                map(lambda x: self.restore_scaling_padding(x), predictions)
+            )
+            if self.direct_processing:
+                return list(map(_postprocess, predictions))
+            # This is for single images
+            else:
+                return predictions
 
     def restore_scaling_padding(self, n_prediction):
         """Restore an image from scaling and padding.
@@ -245,7 +290,7 @@ class CellSegmentator(object):
                 mask_img = remove_small_holes(mask_img, 1000)
                 mask_img = remove_small_objects(mask_img, 8).astype(np.uint8)
                 markers = ndi.label(img_copy, output=np.uint32)[0]
-                labeled_array = watershed(
+                labeled_array = segmentation.watershed(
                     mask_img, markers, mask=mask_img, watershed_line=True
                 )
                 return labeled_array
@@ -275,7 +320,7 @@ class CellSegmentator(object):
             distance = np.clip(
                 cell_seg[..., 2], 255 * threshold_value, cell_seg[..., 2]
             )
-            cell_label = watershed(-distance, nuclei_label, mask=sk)
+            cell_label = segmentation.watershed(-distance, nuclei_label, mask=sk)
             cell_label = remove_small_objects(cell_label, 5500).astype(np.uint8)
             selem = disk(6)
             cell_label = closing(cell_label, selem)
@@ -290,7 +335,7 @@ class CellSegmentator(object):
                 > 0,
                 dtype=np.int8,
             )
-            cell_label = watershed(-distance, cell_label, mask=sk)
+            cell_label = segmentation.watershed(-distance, cell_label, mask=sk)
             cell_label = __fill_holes(cell_label)
             cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
             cell_label = skimage.measure.label(cell_label)
