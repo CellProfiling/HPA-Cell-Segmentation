@@ -52,18 +52,20 @@ list of images and returning the segmentations.
 
   If True, add some padding before feeding the images to the neural networks.
   This is not required but can make segmentations, especially cell segmentations, more accurate. Defaults to False.
+- multi_channel_model
+  download/use three_channel pretrained cell model if True, else two-channel pretrained cell model.
 
 *** Methods
 The two segmentation functions are
-- label_nuclei
+- pred_nuclei
 
-  Returns the neural network output of the nuclei segmentation. The
+  Returns a list of the neural network outputs of the nuclei segmentation. The
   images are on the format (3, H, W). The three channels are as
   follows [<Unused>, touching-nuclei, Nuclei-segmentation].
 
-- label_cells
+- pred_cells
 
-  Returns the neural network output of the cell segmentations. The
+  Returns a list of the neural network outputs of the cell segmentations. The
   images are on the format (3, H, W). The three channels for the cell
   segmentation are as follows [<Unused>, touching-cells,
   Cell-segmentation].
@@ -74,6 +76,15 @@ Each input image should be on the format =(3, H, W)=.
 Note that both these functions assume that all input images are of the
 same shape!!
 
+The two post-processing functions are
+- label_cell
+ 
+  Input with the nuclei and cell prediction for an image. Returns the labeled nuclei and cell mask array
+
+- label_nuclei
+
+  Input with the nuclei prediction for an image. Returns the labeled nuclei mask array
+
 *** Example usage
 
 #+begin_src python
@@ -82,12 +93,16 @@ import hpacellseg.cellsegmentator as cellsegmentator
 images = load_images()  # Assuming load_images gives you a list of cell images
 NUC_MODEL = './nuclei-model.pth'
 CELL_MODEL = './cell-model.pth'
-segmentator = cellsegmentator.CellSegmentator(NUC_MODEL, CELL_MODEL, scale_factor=0.25)
+segmentator = cellsegmentator.CellSegmentator(NUC_MODEL, CELL_MODEL, scale_factor=0.25, multi_channel_model=True)
 
 # For nuclei
-nuc_segmentations = segmentator.label_nuclei(images)
+nuc_segmentations = segmentator.pred_nuclei(images)
 # For full cells
-cell_segmentations = segmentator.label_cells(images)
+cell_segmentations = segmentator.pred_cells(images)
+
+# post-processing (assume nuclei_pred and cell_pred given)
+nuclei_mask, cell_mask = label_cell(nuclei_pred, cell_pred)
+nuclei_mask = label_nuclei(nuclei_pred)
 #+end_src
 
 ** HPACellSeg class

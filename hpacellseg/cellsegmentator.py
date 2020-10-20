@@ -51,7 +51,9 @@ class CellSegmentator(object):
                  This should either be 'cpu' or 'cuda' or pointed cuda
                  device like 'cuda:0' (default: 'cuda').
         padding -- Whether to add padding to the images before feeding the
-                 images to the network. (default: False)
+                 images to the network. (default: False).
+        multi_channel_model -- download/use three_channel pretrained cell
+                             model if True, else two-channel pretrained cell model.
         """
         if device != "cuda" and device != "cpu" and "cuda" not in device:
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")
@@ -92,13 +94,27 @@ class CellSegmentator(object):
             cell_model = torch.load(
                 cell_model, map_location=torch.device(self.device)
             )
-        # if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
-        #    cell_model = cell_model.module
         self.cell_model = cell_model.to(self.device)
         self.scale_factor = scale_factor
         self.padding = padding
 
     def batch_check(self, images):
+        """Convert/Format images to RGB image arrays list for cell predictions.
+        Keyword arguments:
+        images -- list of lists of image paths/arrays. It should following the
+                 pattern if with er channel input,
+                 [
+                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                     [er_path0/image_array0, er_path1/image_array1, ...],
+                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                 ]
+                 or if without er input,
+                 [
+                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                     None,
+                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                 ]
+        """
         microtubule_imgs, er_imgs, nuclei_imgs = images
         if self.multi_channel_model:
             assert isinstance(
@@ -151,14 +167,16 @@ class CellSegmentator(object):
 
     def pred_nuclei(self, images):
         """
-        Label the nuclei in all the images in the list.
-
-        Returns either a list of labeled images or a generator which will
-        yield a single labeled image at a time.
+        Predict the nuclei segmentation.
+        Returns a list of predictions of nuclei segmentation for each nuclei image.
 
         Keyword arguments:
-        images -- A list of images or a list of paths to images.
-                  The images should have the nuclei in the blue channels.
+        images -- A list of image arrays or a list of paths to images.
+                  If as a list of image arrays, the images could be 2d images
+                  of nuclei data array only, or must have the nuclei data in
+                  the blue channel; If as a list of file paths, the images
+                  could be RGB image files or gray scale nuclei image file
+                  paths.
         """
 
         def _preprocess(image):
@@ -229,13 +247,25 @@ class CellSegmentator(object):
 
     def pred_cells(self, images):
         """
-        Returns either a list of labeled images or a generator which will
-        yield a single labeled image at a time.
+        Predict the cell segmentation.
+        Returns a list of predictions of cell segmentations for each cell image.
 
         Keyword arguments:
-        images -- A list of image arrays or a list of paths to image(s).
-                 The images should have the nuclei channel(s) in last and
-                 microtubule image(s) in the last channel, er images in the middle channel if provided. It follows the pattern like [microtubule_image, er_image/None, nuclei_image] or a list of [[microtubule_image0, microtubule_image1, ...], None/[er_image0, er_image1, ...], [nuclei_image0, nuclei_image1, ...]]
+        images -- list of lists of image paths/arrays. It should following the
+                 pattern if with er channel input,
+                 [
+                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                     [er_path0/image_array0, er_path1/image_array1, ...],
+                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                 ]
+                 or if without er input,
+                 [
+                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                     None,
+                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                 ]
+        Returns:
+        predictions -- a list of predictions of cell segmentations
         """
 
         def _preprocess(image):

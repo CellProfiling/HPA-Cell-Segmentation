@@ -31,6 +31,13 @@ def download_with_url(url_string, file_path, unzip=False):
 
 
 def label_nuclei(nuclei_pred):
+    """
+    Return the labeled nuclei mask data array.
+
+    Keyword arguments:
+    nuclei_pred -- a 3D numpy array of a prediction from a nuclei image.
+    cell_pred -- a 3D numpy array of a prediction from a cell image.
+    """
     img_copy = np.copy(nuclei_pred[..., 2])
     borders = (nuclei_pred[..., 1] > 0.05).astype(np.uint8)
     m = img_copy * (1 - borders)
@@ -62,7 +69,14 @@ def label_nuclei(nuclei_pred):
 
 
 def label_cell(nuclei_pred, cell_pred):
-    """post processing cell labels"""
+    """label the cells and nuclei
+    Return two elements, first is the labeled cell mask data array, second is
+    the labeled nuclei mask data array. The same value in cell mask and nuclei mask refers to the identical cell.
+
+    Keyword arguments:
+    nuclei_pred -- a 3D numpy array of a prediction from a nuclei image.
+    cell_pred -- a 3D numpy array of a prediction from a cell image.
+    """
 
     def __fill_holes(image):
         """fill_holes for labelled image, with a unique number"""
@@ -154,4 +168,4 @@ def label_cell(nuclei_pred, cell_pred):
     nuclei_label = remove_small_objects(nuclei_label, 2500)
     nuclei_label = np.multiply(cell_label, nuclei_label > 0)
 
-    return cell_label, nuclei_label
+    return nuclei_label, cell_label
