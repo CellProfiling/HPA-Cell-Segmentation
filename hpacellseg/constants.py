@@ -8,6 +8,6 @@ MULTI_CHANNEL_CELL_MODEL_URL = (
     "https://kth.box.com/shared/static/hl2vuyi1lugywk6fr0drdz48w90gniyv.pth"
 )
 
-CELL_MODEL_URL = (
+TWO_CHANNEL_CELL_MODEL_URL = (
     "https://kth.box.com/shared/static/he8kbtpqdzm9xiznaospm15w4oqxp40f.pth"
 )

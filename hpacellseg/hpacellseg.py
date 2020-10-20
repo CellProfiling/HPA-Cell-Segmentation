@@ -17,7 +17,7 @@ class HPACellSeg:
         image_channels,  # ['microtubules.png', 'er.png/None', 'nuclei.png'] or list
         nuclei_model="./nuclei_model.pth",
         cell_model="./cell_model.pth",
-        device='cuda',
+        device="cuda",
         batch_process=False,
     ):
         self.device = device
@@ -28,7 +28,9 @@ class HPACellSeg:
             assert isinstance(nuclei_channel, list)
             if channel2nd:
                 assert isinstance(channel2nd, list)
-                assert len(cell_channel) == len(channel2nd) == len(nuclei_channel)
+                assert (
+                    len(cell_channel) == len(channel2nd) == len(nuclei_channel)
+                )
             else:
                 assert len(cell_channel) == len(nuclei_channel)
         else:
@@ -39,7 +41,9 @@ class HPACellSeg:
                 assert isinstance(channel2nd, str)
                 channel2nd = [channel2nd]
             nuclei_channel = [nuclei_channel]
-        cell_channel = [os.path.expanduser(item) for _, item in enumerate(cell_channel)]
+        cell_channel = [
+            os.path.expanduser(item) for _, item in enumerate(cell_channel)
+        ]
         nuclei_channel = [
             os.path.expanduser(item) for _, item in enumerate(nuclei_channel)
         ]
@@ -47,11 +51,14 @@ class HPACellSeg:
         mt_data = list(map(lambda x: imageio.imread(x), cell_channel))
         nuclei_data = list(map(lambda x: imageio.imread(x), nuclei_channel))
         if channel2nd:
-            channel2nd = [os.path.expanduser(item) for _, item in enumerate(channel2nd)]
+            channel2nd = [
+                os.path.expanduser(item) for _, item in enumerate(channel2nd)
+            ]
             second_channel = list(map(lambda x: imageio.imread(x), channel2nd))
         else:
             second_channel = [
-                np.zeros(item.shape, dtype=item.dtype) for _, item in enumerate(mt_data)
+                np.zeros(item.shape, dtype=item.dtype)
+                for _, item in enumerate(mt_data)
             ]
         self.cell_imgs = list(
             map(
@@ -71,8 +78,8 @@ class HPACellSeg:
             if channel2nd:  # place holder for 3channel model
                 cell_model_url = MULTI_CHANNEL_CELL_MODEL_URL
             else:
-                cell_model_url = CELL_MODEL_URL
-            download_with_url(CELL_MODEL_URL, cell_model)
+                cell_model_url = TWO_CHANNEL_CELL_MODEL_URLL
+            download_with_url(TWO_CHANNEL_CELL_MODEL_URL, cell_model)
         self.nuclei_model = nuclei_model
         self.cell_model = cell_model
 
@@ -82,7 +89,7 @@ class HPACellSeg:
             self.cell_model,
             scale_factor=scale_factor,
             device=self.device,
-            padding=True
+            padding=True,
         )
         cell_masks = seg.label_cells(self.cell_imgs)
         if self.batch_process:
@@ -92,5 +99,5 @@ class HPACellSeg:
             )
         else:
             cell_masks = cell_masks[0]
-            #print("Output the labeled cell mask")
+            # print("Output the labeled cell mask")
         return cell_masks

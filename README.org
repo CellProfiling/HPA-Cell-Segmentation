@@ -46,14 +46,12 @@ list of images and returning the segmentations.
 - device
 
   Inform Torch which device to put the model on.
-  Valid values are 'cpu' or 'cuda'.
+  Valid values are 'cpu' or 'cuda' or pointed cuda device like 'cuda:0'.
   Defaults to 'cuda'.
 - padding
 
   If True, add some padding before feeding the images to the neural networks.
-  This is not required but can make segmentations, especially cell segmentations,
-  more accurate.
-  Defaults to False.
+  This is not required but can make segmentations, especially cell segmentations, more accurate. Defaults to False.
 
 *** Methods
 The two segmentation functions are
