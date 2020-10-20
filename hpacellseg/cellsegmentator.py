@@ -5,14 +5,7 @@ import sys
 import cv2
 import imageio
 import numpy as np
-import scipy.ndimage as ndi
-from skimage import measure, transform, segmentation, filters, util
-from skimage.morphology import (
-    closing,
-    disk,
-    remove_small_holes,
-    remove_small_objects,
-)
+from skimage import transform, util
 import torch
 import torch.nn
 import torch.nn.functional as F
@@ -35,14 +28,12 @@ class CellSegmentator(object):
 
     def __init__(
         self,
-        nuclei_model='./nuclei_model.pth',
-        cell_model='./cell_model.pth',
+        nuclei_model="./nuclei_model.pth",
+        cell_model="./cell_model.pth",
         scale_factor=0.25,
         device="cuda",
         padding=False,
-        batch_process=False,
         multi_channel_model=True,
-        post_processing=True
     ):
         """
         Keyword arguments:
@@ -104,58 +95,49 @@ class CellSegmentator(object):
         # if isinstance(cell_model, torch.nn.DataParallel) and device == 'cpu':
         #    cell_model = cell_model.module
         self.cell_model = cell_model.to(self.device)
-        self.batch_process = batch_process
         self.scale_factor = scale_factor
         self.padding = padding
-        self.post_processing = post_processing
 
     def batch_check(self, images):
-        microtubule_images, er_images, nuclei_images = images
+        microtubule_imgs, er_imgs, nuclei_imgs = images
         if self.multi_channel_model:
-            assert (
-                er_images is not None
+            assert isinstance(
+                er_imgs, list
             ), "Please speicify the image path(s) for er channels!"
-        if self.batch_process:
-            assert isinstance(microtubule_images, list)
-            assert isinstance(nuclei_images, list)
-            if er_images:
-                assert isinstance(er_images, list)
-                assert (
-                    len(microtubule_images)
-                    == len(er_images)
-                    == len(nuclei_images)
-                )
-            else:
-                assert len(microtubule_images) == len(nuclei_images)
         else:
-            assert isinstance(microtubule_images, str) #raise error
-            assert isinstance(nuclei_images, str)
-            microtubule_images = [microtubule_images]
-            if er_images:
-                assert isinstance(er_images, str)
-                er_images = [er_images]
-            nuclei_images = [nuclei_images]
+            assert (
+                er_imgs is None
+            ), "second channel should be None for two channel model predition!"
 
-        microtubule_images = [
-            os.path.expanduser(item)
-            for _, item in enumerate(microtubule_images)
-        ]
-        nuclei_images = [
-            os.path.expanduser(item) for _, item in enumerate(nuclei_images)
-        ]
+        assert isinstance(microtubule_imgs, list)
+        assert isinstance(nuclei_imgs, list)
+        if er_imgs:
+            assert len(microtubule_imgs) == len(er_imgs) == len(nuclei_imgs)
+        else:
+            assert len(microtubule_imgs) == len(nuclei_imgs)
 
-        microtubule_imgs = list(
-            map(lambda item: imageio.imread(item), microtubule_images)
-        )
-        nuclei_imgs = list(
-            map(lambda item: imageio.imread(item), nuclei_images)
-        )
-        if er_images:
-            er_images = [
-                os.path.expanduser(item) for _, item in enumerate(er_images)
+        if not all(isinstance(item, np.ndarray) for item in microtubule_imgs):
+            microtubule_imgs = [
+                os.path.expanduser(item)
+                for _, item in enumerate(microtubule_imgs)
             ]
-            er_imgs = list(map(lambda item: imageio.imread(item), er_images))
-        else:
+            nuclei_imgs = [
+                os.path.expanduser(item) for _, item in enumerate(nuclei_imgs)
+            ]
+
+            microtubule_imgs = list(
+                map(lambda item: imageio.imread(item), microtubule_imgs)
+            )
+            nuclei_imgs = list(
+                map(lambda item: imageio.imread(item), nuclei_imgs)
+            )
+            if er_imgs:
+                er_imgs = [
+                    os.path.expanduser(item) for _, item in enumerate(er_imgs)
+                ]
+                er_imgs = list(map(lambda item: imageio.imread(item), er_imgs))
+
+        if not er_imgs:
             er_imgs = [
                 np.zeros(item.shape, dtype=item.dtype)
                 for _, item in enumerate(microtubule_imgs)
@@ -167,7 +149,7 @@ class CellSegmentator(object):
             )
         )
 
-    def label_nuclei(self, images):
+    def pred_nuclei(self, images):
         """
         Label the nuclei in all the images in the list.
 
@@ -217,8 +199,8 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        preprocessed_images = map(_preprocess, images)
-        predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
+        preprocessed_imgs = map(_preprocess, images)
+        predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
         predictions = map(util.img_as_ubyte, predictions)
         predictions = list(map(self.restore_scaling_padding, predictions))
@@ -227,8 +209,8 @@ class CellSegmentator(object):
     def restore_scaling_padding(self, n_prediction):
         """Restore an image from scaling and padding.
 
-           This method is intended for internal use.
-           It takes the output from the nuclei model as input."""
+        This method is intended for internal use.
+        It takes the output from the nuclei model as input."""
         n_prediction = n_prediction.transpose([1, 2, 0])
         if self.padding:
             n_prediction = n_prediction[
@@ -245,9 +227,8 @@ class CellSegmentator(object):
             )
         return n_prediction
 
-    def label_cells(self, images):
+    def pred_cells(self, images):
         """
-        Label the cells in all the images in the list.
         Returns either a list of labeled images or a generator which will
         yield a single labeled image at a time.
 
@@ -258,12 +239,8 @@ class CellSegmentator(object):
         """
 
         def _preprocess(image):
-            if isinstance(image, str):
-                image = imageio.imread(image)
-                image = image / 255
             self.target_shape = image.shape
             assert len(image.shape) == 3, "image should has 3 channels"
-            # cell_image = np.dstack((image, image, image))
             cell_image = transform.rescale(
                 image, self.scale_factor, multichannel=True
             )
@@ -293,120 +270,11 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        def _postprocess(nuclei_seg, cell_seg):
-            """post processing cell labels"""
-
-            def __fill_holes(image):
-                """fill_holes for labelled image, with a unique number"""
-                boundaries = segmentation.find_boundaries(image)
-                image = np.multiply(image, np.invert(boundaries))
-                image = ndi.binary_fill_holes(image > 0)
-                image = ndi.label(image)[0]
-                return image
-
-            def __wsh(
-                mask_img,
-                threshold,
-                border_img,
-                seeds,
-                threshold_adjustment=0.35,
-                small_object_size_cutoff=10,
-            ):
-                img_copy = np.copy(mask_img)
-                m = seeds * border_img  # * dt
-                img_copy[m <= threshold + threshold_adjustment] = 0
-                img_copy[m > threshold + threshold_adjustment] = 1
-                img_copy = img_copy.astype(np.bool)
-                img_copy = remove_small_objects(
-                    img_copy, small_object_size_cutoff
-                ).astype(np.uint8)
-
-                mask_img[mask_img <= threshold] = 0
-                mask_img[mask_img > threshold] = 1
-                mask_img = mask_img.astype(np.bool)
-                mask_img = remove_small_holes(mask_img, 1000)
-                mask_img = remove_small_objects(mask_img, 8).astype(np.uint8)
-                markers = ndi.label(img_copy, output=np.uint32)[0]
-                labeled_array = segmentation.watershed(
-                    mask_img, markers, mask=mask_img, watershed_line=True
-                )
-                return labeled_array
-
-            nuclei_label = __wsh(
-                nuclei_seg[..., 2] / 255.0,
-                0.4,
-                1 - (nuclei_seg[..., 1] + cell_seg[..., 1]) / 255.0 > 0.05,
-                nuclei_seg[..., 2] / 255,
-                threshold_adjustment=-0.25,
-                small_object_size_cutoff=500,
-            )
-
-            # for hpa_image, to remove the small pseduo nuclei
-            nuclei_label = remove_small_objects(nuclei_label, 2500)
-            nuclei_label = measure.label(nuclei_label)
-            # this is to remove the cell borders' signal from cell mask.
-            # could use np.logical_and with some revision, to replace this func.
-            # Tuned for segmentation hpa images
-            threshold_value = max(
-                0.22, filters.threshold_otsu(cell_seg[..., 2] / 255) * 0.5
-            )
-            # exclude the green area first
-            cell_region = np.multiply(
-                cell_seg[..., 2] / 255 > threshold_value,
-                np.invert(
-                    np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8)
-                ),
-            )
-            sk = np.asarray(cell_region, dtype=np.int8)
-            distance = np.clip(
-                cell_seg[..., 2], 255 * threshold_value, cell_seg[..., 2]
-            )
-            cell_label = segmentation.watershed(
-                -distance, nuclei_label, mask=sk
-            )
-            cell_label = remove_small_objects(cell_label, 5500).astype(
-                np.uint8
-            )
-            selem = disk(6)
-            cell_label = closing(cell_label, selem)
-            cell_label = __fill_holes(cell_label)
-            # this part is to use green channel, and extend cell label to green channel
-            # benefit is to exclude cells clear on border but without nucleus
-            sk = np.asarray(
-                np.add(
-                    np.asarray(cell_label > 0, dtype=np.int8),
-                    np.asarray(cell_seg[..., 1] / 255 > 0.05, dtype=np.int8),
-                )
-                > 0,
-                dtype=np.int8,
-            )
-            cell_label = segmentation.watershed(-distance, cell_label, mask=sk)
-            cell_label = __fill_holes(cell_label)
-            cell_label = np.asarray(cell_label > 0, dtype=np.uint8)
-            cell_label = measure.label(cell_label)
-            cell_label = remove_small_objects(cell_label, 5500)
-            cell_label = measure.label(cell_label)
-            cell_label = np.asarray(cell_label, dtype=np.uint16)
-            nuclei_label = np.multiply(cell_label > 0, nuclei_label) > 0
-            nuclei_label = measure.label(nuclei_label)
-            nuclei_label = remove_small_objects(nuclei_label, 2500)
-            nuclei_label = np.multiply(cell_label, nuclei_label > 0)
-
-            return cell_label
-        
         self.batch_check(images)
-        preprocessed_images = map(_preprocess, self.cell_imgs)
-        predictions = map(lambda x: _segment_helper([x]), preprocessed_images)
+        preprocessed_imgs = map(_preprocess, self.cell_imgs)
+        predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
         predictions = map(self.restore_scaling_padding, predictions)
         predictions = list(map(util.img_as_ubyte, predictions))
-        if self.post_processing:
-            nuclei_labels = self.label_nuclei(self.cell_imgs)
-            predictions = list(
-                map(
-                    lambda item: _postprocess(item[0], item[1]),
-                    list(zip(nuclei_labels, predictions)),
-                )
-            )
 
         return predictions
