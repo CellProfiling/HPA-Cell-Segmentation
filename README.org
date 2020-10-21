@@ -117,8 +117,8 @@ The two available post-processing functions are located in the ~hpacellseg.utils
   # Assuming that there are images in the current folder with the
   # following names.
   images = [
-      ["microtubules_one.tif", "microtubules_two.tif"]
-      ["endoplasmic_reticulum_one.tif", "endoplasmic_reticulum_two.tif"]
+      ["microtubules_one.tif", "microtubules_two.tif"],
+      ["endoplasmic_reticulum_one.tif", "endoplasmic_reticulum_two.tif"],
       ["nuclei_one.tif", "nuclei_two.tif"]
   ]
   NUC_MODEL = "./nuclei-model.pth"
@@ -139,6 +139,6 @@ The two available post-processing functions are located in the ~hpacellseg.utils
   cell_segmentations = segmentator.pred_cells(images)
 
   # post-processing
-  nuclei_mask = label_nuclei(nuc_segmentations)
-  nuclei_mask, cell_mask = label_cell(nuc_segmentations, cell_segmentations)
+  nuclei_mask = label_nuclei(nuc_segmentations[0])
+  nuclei_mask, cell_mask = label_cell(nuc_segmentations[1], cell_segmentations[1])
 #+end_src
