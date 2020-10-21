@@ -31,32 +31,39 @@ class CellSegmentator(object):
         """Class for segmenting nuclei and whole cells from confocal microscopy images.
 
         It takes lists of images and returns the raw output from the
-        specified segmentation model. The outputs from this class'
-        methods are well combined with the label functions in the
-        utils module.
+        specified segmentation model. Models can be automatically
+        downloaded if they are not already available on the system.
+
+        When working with images from the Huan Protein Cell atlas, the
+        outputs from this class' methods are well combined with the
+        label functions in the utils module.
+
+        Note that for cell segmentation, there are two possible models
+        available. One that works with 2 channeled images and one that
+        takes 3 channels.
 
         Keyword arguments:
         nuclei_model -- A loaded torch nuclei segmentation model or the
                         path to a file which contains such a model.
                         If the argument is a path that points to a non-existant file,
                         a pretrained nuclei_model is going to get downloaded to the
-                        specified path.
+                        specified path (default: './nuclei_model.pth').
         cell_model -- A loaded torch cell segmentation model or the
                       path to a file which contains such a model.
                       The cell_model argument can be None if only nuclei
-                      are to be segmented. (default: './cell_model.pth')
+                      are to be segmented (default: './cell_model.pth').
         scale_factor -- How much to scale images before they are fed to
-                     segmentation models. Segmentations will be scaled back
-                     up by 1/scale_factor to match the original image
-                     (default: 1.0).
+                        segmentation models. Segmentations will be scaled back
+                        up by 1/scale_factor to match the original image
+                        (default: 0.25).
         device -- The device on which to run the models.
                   This should either be 'cpu' or 'cuda' or pointed cuda
                   device like 'cuda:0' (default: 'cuda').
         padding -- Whether to add padding to the images before feeding the
                    images to the network. (default: False).
-        multi_channel_model -- download/use three_channel pretrained cell
-                             model if True, else two-channel pretrained cell model.
-
+        multi_channel_model -- Control whether to use the 3-channel cell model or not.
+                               If True, use the 3-channel model, otherwise use the
+                               2-channel version (default: True).
         """
         if device != "cuda" and device != "cpu" and "cuda" not in device:
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")
@@ -98,8 +105,11 @@ class CellSegmentator(object):
         self.scale_factor = scale_factor
         self.padding = padding
 
-    def batch_check(self, images):
+    def _image_conversion(self, images):
         """Convert/Format images to RGB image arrays list for cell predictions.
+
+        Intended for internal use only.
+
         Keyword arguments:
         images -- list of lists of image paths/arrays. It should following the
                  pattern if with er channel input,
@@ -117,20 +127,25 @@ class CellSegmentator(object):
         """
         microtubule_imgs, er_imgs, nuclei_imgs = images
         if self.multi_channel_model:
-            assert isinstance(
-                er_imgs, list
-            ), "Please speicify the image path(s) for er channels!"
+            if not isinstance(er_imgs, list):
+                raise ValueError("Please speicify the image path(s) for er channels!")
         else:
-            assert (
-                er_imgs is None
-            ), "second channel should be None for two channel model predition!"
+            if not er_imgs is None:
+                raise ValueError(
+                    "second channel should be None for two channel model predition!"
+                )
 
-        assert isinstance(microtubule_imgs, list)
-        assert isinstance(nuclei_imgs, list)
+        if not isinstance(microtubule_imgs, list):
+            raise ValueError("The microtubule images should be a list")
+        if not isinstance(nuclei_imgs, list):
+            raise ValueError("The microtubule images should be a list")
+
         if er_imgs:
-            assert len(microtubule_imgs) == len(er_imgs) == len(nuclei_imgs)
+            if not len(microtubule_imgs) == len(er_imgs) == len(nuclei_imgs):
+                raise ValueError("The lists of images needs to be the same length")
         else:
-            assert len(microtubule_imgs) == len(nuclei_imgs)
+            if not len(microtubule_imgs) == len(nuclei_imgs):
+                raise ValueError("The lists of images needs to be the same length")
 
         if not all(isinstance(item, np.ndarray) for item in microtubule_imgs):
             microtubule_imgs = [
@@ -159,13 +174,11 @@ class CellSegmentator(object):
                 list(zip(microtubule_imgs, er_imgs, nuclei_imgs)),
             )
         )
-        
+
         return cell_imgs
 
     def pred_nuclei(self, images):
-        """
-        Predict the nuclei segmentation.
-        Returns a list of predictions of nuclei segmentation for each nuclei image.
+        """Predict the nuclei segmentation.
 
         Keyword arguments:
         images -- A list of image arrays or a list of paths to images.
@@ -174,6 +187,9 @@ class CellSegmentator(object):
                   the blue channel; If as a list of file paths, the images
                   could be RGB image files or gray scale nuclei image file
                   paths.
+
+        Returns:
+        predictions -- A list of predictions of nuclei segmentation for each nuclei image.
         """
 
         def _preprocess(image):
@@ -214,14 +230,15 @@ class CellSegmentator(object):
         predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
         predictions = map(util.img_as_ubyte, predictions)
-        predictions = list(map(self.restore_scaling_padding, predictions))
+        predictions = list(map(self._restore_scaling_padding, predictions))
         return predictions
 
-    def restore_scaling_padding(self, n_prediction):
+    def _restore_scaling_padding(self, n_prediction):
         """Restore an image from scaling and padding.
 
         This method is intended for internal use.
-        It takes the output from the nuclei model as input."""
+        It takes the output from the nuclei model as input.
+        """
         n_prediction = n_prediction.transpose([1, 2, 0])
         if self.padding:
             n_prediction = n_prediction[
@@ -236,32 +253,39 @@ class CellSegmentator(object):
             )
         return n_prediction
 
-    def pred_cells(self, images):
-        """
-        Predict the cell segmentation.
-        Returns a list of predictions of cell segmentations for each cell image.
+    def pred_cells(self, images, precombined=False):
+        """Predict the cell segmentation for a list of images.
 
         Keyword arguments:
         images -- list of lists of image paths/arrays. It should following the
-                 pattern if with er channel input,
-                 [
-                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
-                     [er_path0/image_array0, er_path1/image_array1, ...],
-                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
-                 ]
-                 or if without er input,
-                 [
-                     [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
-                     None,
-                     [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
-                 ]
+                  pattern if with er channel input,
+                  [
+                      [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                      [er_path0/image_array0, er_path1/image_array1, ...],
+                      [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                  ]
+                  or if without er input,
+                  [
+                      [microtubule_path0/image_array0, microtubule_path1/image_array1, ...],
+                      None,
+                      [nuclei_path0/image_array0, nuclei_path1/image_array1, ...]
+                  ]
+
+                  The ER channel is required when multichannel is True
+                  and required to be None when multichannel is False.
+
+                  The images needs to be of the same size.
+        precombined -- If precombined is True, the list of images is instead supposed to be
+                       a list of RGB numpy arrays (default: False).
+
         Returns:
-        predictions -- a list of predictions of cell segmentations
+        predictions -- a list of predictions of cell segmentations.
         """
 
         def _preprocess(image):
             self.target_shape = image.shape
-            assert len(image.shape) == 3, "image should has 3 channels"
+            if not len(image.shape) == 3:
+                raise ValueError("image should has 3 channels")
             cell_image = transform.rescale(image, self.scale_factor, multichannel=True)
             if self.padding:
                 rows, cols = cell_image.shape[:2]
@@ -289,11 +313,12 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        images = self.batch_check(images)
+        if not precombined:
+            images = self._image_conversion(images)
         preprocessed_imgs = map(_preprocess, images)
         predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
-        predictions = map(self.restore_scaling_padding, predictions)
+        predictions = map(self._restore_scaling_padding, predictions)
         predictions = list(map(util.img_as_ubyte, predictions))
 
         return predictions
