@@ -158,12 +158,14 @@ class CellSegmentator(object):
                 np.zeros(item.shape, dtype=item.dtype)
                 for _, item in enumerate(microtubule_imgs)
             ]
-        self.cell_imgs = list(
+        cell_imgs = list(
             map(
                 lambda item: np.dstack((item[0], item[1], item[2])),
                 list(zip(microtubule_imgs, er_imgs, nuclei_imgs)),
             )
         )
+        
+        return cell_imgs
 
     def pred_nuclei(self, images):
         """
@@ -300,8 +302,8 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        self.batch_check(images)
-        preprocessed_imgs = map(_preprocess, self.cell_imgs)
+        images = self.batch_check(images)
+        preprocessed_imgs = map(_preprocess, images)
         predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
         predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
         predictions = map(self.restore_scaling_padding, predictions)
