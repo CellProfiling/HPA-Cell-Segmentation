@@ -5,22 +5,15 @@ import sys
 import cv2
 import imageio
 import numpy as np
-from skimage import transform, util
 import torch
 import torch.nn
 import torch.nn.functional as F
-from hpacellseg.constants import (
-    MULTI_CHANNEL_CELL_MODEL_URL,
-    TWO_CHANNEL_CELL_MODEL_URL,
-    NUCLEI_MODEL_URL,
-)
+from hpacellseg.constants import (MULTI_CHANNEL_CELL_MODEL_URL,
+                                  NUCLEI_MODEL_URL, TWO_CHANNEL_CELL_MODEL_URL)
 from hpacellseg.utils import download_with_url
+from skimage import transform, util
 
-
-NORMALIZE = {
-    "mean": [124 / 255, 117 / 255, 104 / 255],
-    "std": [1 / (0.0167 * 255)] * 3,
-}
+NORMALIZE = {"mean": [124 / 255, 117 / 255, 104 / 255], "std": [1 / (0.0167 * 255)] * 3}
 
 
 class CellSegmentator(object):
@@ -35,25 +28,35 @@ class CellSegmentator(object):
         padding=False,
         multi_channel_model=True,
     ):
-        """
+        """Class for segmenting nuclei and whole cells from confocal microscopy images.
+
+        It takes lists of images and returns the raw output from the
+        specified segmentation model. The outputs from this class'
+        methods are well combined with the label functions in the
+        utils module.
+
         Keyword arguments:
         nuclei_model -- A loaded torch nuclei segmentation model or the
-                     path to a file which contains such a model.
+                        path to a file which contains such a model.
+                        If the argument is a path that points to a non-existant file,
+                        a pretrained nuclei_model is going to get downloaded to the
+                        specified path.
         cell_model -- A loaded torch cell segmentation model or the
-                     path to a file which contains such a model.
-                     The cell segmentator argument can be None if only nucleli
-                     are to be segmented. (default: None)
+                      path to a file which contains such a model.
+                      The cell_model argument can be None if only nuclei
+                      are to be segmented. (default: './cell_model.pth')
         scale_factor -- How much to scale images before they are fed to
                      segmentation models. Segmentations will be scaled back
                      up by 1/scale_factor to match the original image
                      (default: 1.0).
         device -- The device on which to run the models.
-                 This should either be 'cpu' or 'cuda' or pointed cuda
-                 device like 'cuda:0' (default: 'cuda').
+                  This should either be 'cpu' or 'cuda' or pointed cuda
+                  device like 'cuda:0' (default: 'cuda').
         padding -- Whether to add padding to the images before feeding the
-                 images to the network. (default: False).
+                   images to the network. (default: False).
         multi_channel_model -- download/use three_channel pretrained cell
                              model if True, else two-channel pretrained cell model.
+
         """
         if device != "cuda" and device != "cpu" and "cuda" not in device:
             raise ValueError(f"{device} is not a valid device (cuda/cpu)")
@@ -84,16 +87,13 @@ class CellSegmentator(object):
         if isinstance(cell_model, str):
             if not os.path.exists(cell_model):
                 print(
-                    f"Could not find {cell_model}. Downloading it now",
-                    file=sys.stderr,
+                    f"Could not find {cell_model}. Downloading it now", file=sys.stderr
                 )
                 if self.multi_channel_model:
                     download_with_url(MULTI_CHANNEL_CELL_MODEL_URL, cell_model)
                 else:
                     download_with_url(TWO_CHANNEL_CELL_MODEL_URL, cell_model)
-            cell_model = torch.load(
-                cell_model, map_location=torch.device(self.device)
-            )
+            cell_model = torch.load(cell_model, map_location=torch.device(self.device))
         self.cell_model = cell_model.to(self.device)
         self.scale_factor = scale_factor
         self.padding = padding
@@ -134,8 +134,7 @@ class CellSegmentator(object):
 
         if not all(isinstance(item, np.ndarray) for item in microtubule_imgs):
             microtubule_imgs = [
-                os.path.expanduser(item)
-                for _, item in enumerate(microtubule_imgs)
+                os.path.expanduser(item) for _, item in enumerate(microtubule_imgs)
             ]
             nuclei_imgs = [
                 os.path.expanduser(item) for _, item in enumerate(nuclei_imgs)
@@ -144,13 +143,9 @@ class CellSegmentator(object):
             microtubule_imgs = list(
                 map(lambda item: imageio.imread(item), microtubule_imgs)
             )
-            nuclei_imgs = list(
-                map(lambda item: imageio.imread(item), nuclei_imgs)
-            )
+            nuclei_imgs = list(map(lambda item: imageio.imread(item), nuclei_imgs))
             if er_imgs:
-                er_imgs = [
-                    os.path.expanduser(item) for _, item in enumerate(er_imgs)
-                ]
+                er_imgs = [os.path.expanduser(item) for _, item in enumerate(er_imgs)]
                 er_imgs = list(map(lambda item: imageio.imread(item), er_imgs))
 
         if not er_imgs:
@@ -185,12 +180,8 @@ class CellSegmentator(object):
             self.target_shape = image.shape
             if len(image.shape) == 2:
                 image = np.dstack((image, image, image))
-            image = transform.rescale(
-                image, self.scale_factor, multichannel=True
-            )
-            nuc_image = np.dstack(
-                (image[..., 2], image[..., 2], image[..., 2])
-            )
+            image = transform.rescale(image, self.scale_factor, multichannel=True)
+            nuc_image = np.dstack((image[..., 2], image[..., 2], image[..., 2]))
             if self.padding:
                 rows, cols = nuc_image.shape[:2]
                 self.scaled_shape = rows, cols
@@ -232,9 +223,7 @@ class CellSegmentator(object):
         n_prediction = n_prediction.transpose([1, 2, 0])
         if self.padding:
             n_prediction = n_prediction[
-                32 : 32 + self.scaled_shape[0],
-                32 : 32 + self.scaled_shape[1],
-                ...,
+                32 : 32 + self.scaled_shape[0], 32 : 32 + self.scaled_shape[1], ...
             ]
         if not self.scale_factor == 1:
             n_prediction[..., 0] = 0
@@ -271,9 +260,7 @@ class CellSegmentator(object):
         def _preprocess(image):
             self.target_shape = image.shape
             assert len(image.shape) == 3, "image should has 3 channels"
-            cell_image = transform.rescale(
-                image, self.scale_factor, multichannel=True
-            )
+            cell_image = transform.rescale(image, self.scale_factor, multichannel=True)
             if self.padding:
                 rows, cols = cell_image.shape[:2]
                 self.scaled_shape = rows, cols
