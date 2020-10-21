@@ -1,5 +1,5 @@
 include LICENSE
-include README.md
+include README.org
 include hpacellseg/VERSION
 exclude requirements*.txt
 exclude .*

@@ -1,0 +1,144 @@
+* HPA-Cell-Segmentation
+Tools for running cell segmentation using pretrained U-Nets.
+
+1. The =cellsegmentator= module which implements a class
+   =CellSegmentator= to make running segmentation from Python code
+   easier.
+2. A =utils= module which contain a couple of post-processing functions
+   that is good to use when working with images from the Human Protein
+   Cell Atlas.
+
+* Installation
+The following steps will install =hpacellseg= to your local =pip=
+installations folder together with all necessary dependencies.
+
+- =cd HPA-Cell-Segmentation=
+- =sh install.sh=
+
+You can verify the installation has worked by running
+#+begin_example
+python -c 'import hpacellseg'
+#+end_example
+in a terminal.
+
+
+* Usage
+** CellSegmentator class
+The =CellSegmentator= is made for programmaticly iterating through a
+list of images and returning the segmentations.
+
+It is located in ~hpacellseg.cellsegmentator~.
+
+*** Arguments
+- nuclei_model
+
+  This should be a string containing the path to the nuclei-model weights.
+  If the weights do not exist at the path, they will be downloaded to it.
+  Defaults to ~./nuclei_model.pth~.
+- cell_model
+
+  This should be a string containing the path to the cell-model weights.
+  If the weights do not exist at the path, they will be downloaded to it.
+  Defaults to ~./cell_model.pth~.
+- scale_factor
+
+  This value determines how much the images should be
+  scaled before being fed to the models.
+  For HPA Cell images, a value of ~0.25~ is good.
+  Defaults to ~0.25~.
+- device
+
+  Inform Torch which device to put the model on.
+  Valid values are 'cpu' or 'cuda' or pointed cuda device like 'cuda:0'.
+  Defaults to ~cuda~.
+- padding
+
+  If True, add some padding before feeding the images to the neural
+  networks. This is not required but can make segmentations,
+  especially cell segmentations, more accurate. Defaults to ~False~.
+
+- multi_channel_model
+
+  If True, use the pretrained three-channel version of the model.
+  Having this set to True gives you better cell segmentations but
+  requires you to give the model endoplasmic reticulum images as part
+  of the cell segmentation. Otherwise, the version trained with only
+  two channels, microtubules and nuclei, will be used.
+  Defaults to ~True~.
+
+*** Methods
+The two segmentation functions are
+- pred_nuclei
+
+  The function takes a list of image arrays or a list of string paths
+  to images. If the image arrays are 3 channels, the nuclei should be
+  in the third (blue) channel.
+
+  Returns a list of the neural network outputs of the nuclei segmentation. The
+  images are on the format (3, H, W). The three channels are as
+  follows [<Unused>, touching-nuclei, Nuclei-segmentation].
+
+- pred_cells
+
+  The function takes a list of three lists as input. The lists should
+  contain either image arrays or string paths, in the order of
+  microtubules, endoplasmic reticulum, and nuclei.
+
+  Returns a list of the neural network outputs of the cell segmentations. The
+  images are on the format (3, H, W). The three channels for the cell
+  segmentation are as follows [<Unused>, touching-cells,
+  Cell-segmentation].
+
+Note that both these functions assume that all input images are of the
+same shape!!
+
+** Post processing
+The two available post-processing functions are located in the ~hpacellseg.utils~ module. They are:
+- label_nuclei
+
+  Input with the nuclei prediction for an image. Returns the labeled
+  nuclei mask array. 0s in the array indicate background while all
+  other numbers 1-n indicate which cell is in that spot.
+
+- label_cell
+
+  Input with the nuclei and cell prediction for an image. Returns the
+  labeled nuclei and cell mask arrays as a tuple. As with
+  =label_nuclei=, the background is 0s and other numbers indicates which
+  cell is there. The same cell will have the same number in both
+  arrays.
+
+** Example usage
+
+#+begin_src python
+  import hpacellseg.cellsegmentator as cellsegmentator
+  from hpacellseg.utils import label_cell, label_nuclei
+
+  # Assuming that there are images in the current folder with the
+  # following names.
+  images = [
+      ["microtubules_one.tif", "microtubules_two.tif"]
+      ["endoplasmic_reticulum_one.tif", "endoplasmic_reticulum_two.tif"]
+      ["nuclei_one.tif", "nuclei_two.tif"]
+  ]
+  NUC_MODEL = "./nuclei-model.pth"
+  CELL_MODEL = "./cell-model.pth"
+  segmentator = cellsegmentator.CellSegmentator(
+      NUC_MODEL,
+      CELL_MODEL,
+      scale_factor=0.25,
+      device="cuda",
+      padding=False,
+      multi_channel_model=True,
+  )
+
+  # For nuclei
+  nuc_segmentations = segmentator.pred_nuclei(images[2])
+
+  # For full cells
+  cell_segmentations = segmentator.pred_cells(images)
+
+  # post-processing
+  nuclei_mask = label_nuclei(nuc_segmentations)
+  nuclei_mask, cell_mask = label_cell(nuc_segmentations, cell_segmentations)
+#+end_src
