@@ -2,16 +2,12 @@
 import os.path
 import urllib
 import zipfile
-from skimage import measure, segmentation, filters
-import scipy.ndimage as ndi
-from skimage.morphology import (
-    closing,
-    disk,
-    remove_small_holes,
-    remove_small_objects,
-    binary_erosion,
-)
+
 import numpy as np
+import scipy.ndimage as ndi
+from skimage import filters, measure, segmentation
+from skimage.morphology import (binary_erosion, closing, disk,
+                                remove_small_holes, remove_small_objects)
 
 HIGH_THRESHOLD = 0.4
 LOW_THRESHOLD = HIGH_THRESHOLD - 0.25
@@ -31,12 +27,19 @@ def download_with_url(url_string, file_path, unzip=False):
 
 
 def label_nuclei(nuclei_pred):
-    """
-    Return the labeled nuclei mask data array.
+    """Return the labeled nuclei mask data array.
+
+    This function works best for Human Protein Atlas cell images with
+    predictions from the CellSegmentator class.
 
     Keyword arguments:
     nuclei_pred -- a 3D numpy array of a prediction from a nuclei image.
-    cell_pred -- a 3D numpy array of a prediction from a cell image.
+
+    Returns:
+    nuclei-label -- An array with unique numbers for each found nuclei
+                    in the nuclei_pred. A value of 0 in the array is
+                    considered background, and the values 1-n is the
+                    areas of the cells 1-n.
     """
     img_copy = np.copy(nuclei_pred[..., 2])
     borders = (nuclei_pred[..., 1] > 0.05).astype(np.uint8)
@@ -69,17 +72,30 @@ def label_nuclei(nuclei_pred):
 
 
 def label_cell(nuclei_pred, cell_pred):
-    """label the cells and nuclei
-    Return two elements, first is the labeled cell mask data array, second is
-    the labeled nuclei mask data array. The same value in cell mask and nuclei mask refers to the identical cell.
+    """Label the cells and the nuclei.
 
     Keyword arguments:
     nuclei_pred -- a 3D numpy array of a prediction from a nuclei image.
     cell_pred -- a 3D numpy array of a prediction from a cell image.
+
+    Returns:
+    A tuple containing:
+    nuclei-label -- A nuclei mask data array.
+    cell-label  -- A cell mask data array.
+
+    0's in the data arrays indicate background while a continous
+    strech of a specific number indicates the area for a specific
+    cell.
+    The same value in cell mask and nuclei mask refers to the identical cell.
+
+    NOTE: The nuclei labeling from this function will be sligthly
+    different from the values in :func:`label_nuclei` as this version
+    will use information from the cell-predictions to make better
+    estimates.
     """
 
     def __fill_holes(image):
-        """fill_holes for labelled image, with a unique number"""
+        """Fill_holes for labelled image, with a unique number."""
         boundaries = segmentation.find_boundaries(image)
         image = np.multiply(image, np.invert(boundaries))
         image = ndi.binary_fill_holes(image > 0)
@@ -99,9 +115,9 @@ def label_cell(nuclei_pred, cell_pred):
         img_copy[m <= threshold + threshold_adjustment] = 0
         img_copy[m > threshold + threshold_adjustment] = 1
         img_copy = img_copy.astype(np.bool)
-        img_copy = remove_small_objects(
-            img_copy, small_object_size_cutoff
-        ).astype(np.uint8)
+        img_copy = remove_small_objects(img_copy, small_object_size_cutoff).astype(
+            np.uint8
+        )
 
         mask_img[mask_img <= threshold] = 0
         mask_img[mask_img > threshold] = 1
@@ -129,18 +145,14 @@ def label_cell(nuclei_pred, cell_pred):
     # this is to remove the cell borders' signal from cell mask.
     # could use np.logical_and with some revision, to replace this func.
     # Tuned for segmentation hpa images
-    threshold_value = max(
-        0.22, filters.threshold_otsu(cell_pred[..., 2] / 255) * 0.5
-    )
+    threshold_value = max(0.22, filters.threshold_otsu(cell_pred[..., 2] / 255) * 0.5)
     # exclude the green area first
     cell_region = np.multiply(
         cell_pred[..., 2] / 255 > threshold_value,
         np.invert(np.asarray(cell_pred[..., 1] / 255 > 0.05, dtype=np.int8)),
     )
     sk = np.asarray(cell_region, dtype=np.int8)
-    distance = np.clip(
-        cell_pred[..., 2], 255 * threshold_value, cell_pred[..., 2]
-    )
+    distance = np.clip(cell_pred[..., 2], 255 * threshold_value, cell_pred[..., 2])
     cell_label = segmentation.watershed(-distance, nuclei_label, mask=sk)
     cell_label = remove_small_objects(cell_label, 5500).astype(np.uint8)
     selem = disk(6)

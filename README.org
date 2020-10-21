@@ -26,38 +26,50 @@ in a terminal.
 The =CellSegmentator= is made for programmaticly iterating through a
 list of images and returning the segmentations.
 
-*** Required arguments
+*** Arguments
 - nuclei_model
 
   This should be a string containing the path to the nuclei-model weights.
   If the weights do not exist at the path, they will be downloaded to it.
+  Defaults to ='./nuclei_model.pth'=.
 - cell_model
 
   This should be a string containing the path to the cell-model weights.
   If the weights do not exist at the path, they will be downloaded to it.
-
-*** Optional/default arguments
+  Defaults to ='./cell_model.pth'=.
 - scale_factor
 
   This value determines how much the images should be
   scaled before being fed to the models.
   For HPA Cell images, a value of =0.25= is good.
-  Defaults to =1.0=.
+  Defaults to =0.25=.
 - device
 
   Inform Torch which device to put the model on.
   Valid values are 'cpu' or 'cuda' or pointed cuda device like 'cuda:0'.
-  Defaults to 'cuda'.
+  Defaults to ='cuda'=.
 - padding
 
-  If True, add some padding before feeding the images to the neural networks.
-  This is not required but can make segmentations, especially cell segmentations, more accurate. Defaults to False.
+  If True, add some padding before feeding the images to the neural
+  networks. This is not required but can make segmentations,
+  especially cell segmentations, more accurate. Defaults to =False=.
+
 - multi_channel_model
-  download/use three_channel pretrained cell model if True, else two-channel pretrained cell model.
+
+  If True, use the pretrained three-channel version of the model.
+  Having this set to True gives you better cell segmentations but
+  requires you to give the model endoplasmic reticulum images as part
+  of the cell segmentation. Otherwise, the version trained with only
+  two channels, microtubules and nuclei, will be used.
+  Defaults to =True=.
 
 *** Methods
 The two segmentation functions are
 - pred_nuclei
+
+  The function takes a list of image arrays or a list of string paths
+  to images. If the image arrays are 3 channels, the nuclei should be
+  in the third (blue) channel.
 
   Returns a list of the neural network outputs of the nuclei segmentation. The
   images are on the format (3, H, W). The three channels are as
@@ -65,55 +77,58 @@ The two segmentation functions are
 
 - pred_cells
 
+  The function takes a list of three lists as input. The lists should
+  contain either image arrays or string paths, in the order of
+  microtubules, endoplasmic reticulum, and nuclei.
+
   Returns a list of the neural network outputs of the cell segmentations. The
   images are on the format (3, H, W). The three channels for the cell
   segmentation are as follows [<Unused>, touching-cells,
   Cell-segmentation].
 
-Both take a list of cell images as input.
-Each input image should be on the format =(3, H, W)=.
-
 Note that both these functions assume that all input images are of the
 same shape!!
 
-The two post-processing functions are
+
+*** Example usage
+
+#+begin_src python
+  import hpacellseg.cellsegmentator as cellsegmentator
+  from hpacellseg.utils import label_cell, label_nuclei
+
+  images = [
+      ["red_one.tif", "red_two.tif"]
+      ["yellow_one.tif", "yellow_two.tif"]
+      ["blue_one.tif", "blue_two.tif"]
+  ]
+  NUC_MODEL = "./nuclei-model.pth"
+  CELL_MODEL = "./cell-model.pth"
+  segmentator = cellsegmentator.CellSegmentator(
+      NUC_MODEL,
+      CELL_MODEL,
+      scale_factor=0.25,
+      device="cuda",
+      padding=False,
+      multi_channel_model=True,
+  )
+
+  # For nuclei
+  nuc_segmentations = segmentator.pred_nuclei(images[2])
+
+  # For full cells
+  cell_segmentations = segmentator.pred_cells(images)
+
+  # post-processing
+  nuclei_mask = label_nuclei(nuc_segmentations)
+  nuclei_mask, cell_mask = label_cell(nuc_segmentations, cell_segmentations)
+#+end_src
+
+** Post processing
+The two available post-processing functions are
 - label_cell
- 
+
   Input with the nuclei and cell prediction for an image. Returns the labeled nuclei and cell mask array
 
 - label_nuclei
 
   Input with the nuclei prediction for an image. Returns the labeled nuclei mask array
-
-*** Example usage
-
-#+begin_src python
-import hpacellseg.cellsegmentator as cellsegmentator
-
-images = load_images()  # Assuming load_images gives you a list of cell images
-NUC_MODEL = './nuclei-model.pth'
-CELL_MODEL = './cell-model.pth'
-segmentator = cellsegmentator.CellSegmentator(NUC_MODEL, CELL_MODEL, scale_factor=0.25, multi_channel_model=True)
-
-# For nuclei
-nuc_segmentations = segmentator.pred_nuclei(images)
-# For full cells
-cell_segmentations = segmentator.pred_cells(images)
-
-# post-processing (assume nuclei_pred and cell_pred given)
-nuclei_mask, cell_mask = label_cell(nuclei_pred, cell_pred)
-nuclei_mask = label_nuclei(nuclei_pred)
-#+end_src
-
-** HPACellSeg class
-This class is intended for use by the =__main__= function of this package.
-
-*** Run example
-- `python3 -m hpacellseg --cell_channel 'path/to/1949_A2_1_red.tif' --nuclei_channel 'path/to/1949_A2_1_blue.tif' --cell_model 'path/to/models/dpn_unet_cell.pth' --nuclei_model 'path/to/models/dpn_unet_nuclei.pth' --cell_mask 'path/to/output/cell_mask.tif' --nuclei_mask 'path/to/output/nuclei_mask.tif'`
-    - cell\_channel : image file path of microtubules image, like folder\_path\_to/1948\_A1\_2_red.tif.
-    - nuclei_channel: image file path of nuclei image, like folder_path_to/1948_A1_2_blue.tif.
-    - nuclei_model: model file path of nuclei model, with specifying model file name, like folder_path_to/dpn_unet_nuclei.pth; Will automatically download the model if the model file path is invalid.
-    - cell_model: model file path of cell model, with specifying model file name, like folder_path_to/dpn_unet_cell.pth; Will automatically download the model if the model file path is invalid.
-    - cell_mask: cell mask file path, with specifying the file name, like folder_path_to/1948_A1_2_cell_mask.tif
-    - nuclei_mask: This is optional. if with, this is nuclei mask file path, with specifying the file name, like folder_path_to/1948_A1_2_nuclei_mask.tif
-- use .tif image for output for cell mask, like mask.tif. .tif image supports 16bit depth image
