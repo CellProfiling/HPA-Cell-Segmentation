@@ -26,6 +26,15 @@ def download_with_url(url_string, file_path, unzip=False):
             zip_ref.extractall(os.path.dirname(file_path))
 
 
+def __fill_holes(image):
+    """Fill_holes for labelled image, with a unique number."""
+    boundaries = segmentation.find_boundaries(image)
+    image = np.multiply(image, np.invert(boundaries))
+    image = ndi.binary_fill_holes(image > 0)
+    image = ndi.label(image)[0]
+    return image
+
+
 def label_nuclei(nuclei_pred):
     """Return the labeled nuclei mask data array.
 
@@ -93,15 +102,6 @@ def label_cell(nuclei_pred, cell_pred):
     will use information from the cell-predictions to make better
     estimates.
     """
-
-    def __fill_holes(image):
-        """Fill_holes for labelled image, with a unique number."""
-        boundaries = segmentation.find_boundaries(image)
-        image = np.multiply(image, np.invert(boundaries))
-        image = ndi.binary_fill_holes(image > 0)
-        image = ndi.label(image)[0]
-        return image
-
     def __wsh(
         mask_img,
         threshold,
@@ -189,14 +189,6 @@ def label_cell2(cell_pred):
     size = cell_pred.shape[0]
     img = cell_pred.copy()
     cell_pred[..., 2] = filters.gaussian(cell_pred[..., 2], sigma=8)
-
-    def __fill_holes(image):
-        """Fill_holes for labelled image, with a unique number."""
-        boundaries = segmentation.find_boundaries(image)
-        image = np.multiply(image, np.invert(boundaries))
-        image = ndi.binary_fill_holes(image > 0)
-        image = ndi.label(image)[0]
-        return image
     threshold_value = max(0.22, filters.threshold_otsu(cell_pred[..., 2]))
     threshold_value1 = max(0.6, filters.threshold_otsu(img[..., 2]))
     # exclude the green area first
