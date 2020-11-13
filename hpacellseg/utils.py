@@ -181,3 +181,63 @@ def label_cell(nuclei_pred, cell_pred):
     nuclei_label = np.multiply(cell_label, nuclei_label > 0)
 
     return nuclei_label, cell_label
+
+
+def label_cell2(cell_pred):
+    """label cell with only cell predition"""
+    cell_pred = cell_pred / cell_pred.max()
+    size = cell_pred.shape[0]
+    img = cell_pred.copy()
+    cell_pred[..., 2] = filters.gaussian(cell_pred[..., 2], sigma=8)
+
+    def __fill_holes(image):
+        """Fill_holes for labelled image, with a unique number."""
+        boundaries = segmentation.find_boundaries(image)
+        image = np.multiply(image, np.invert(boundaries))
+        image = ndi.binary_fill_holes(image > 0)
+        image = ndi.label(image)[0]
+        return image
+    threshold_value = max(0.22, filters.threshold_otsu(cell_pred[..., 2]))
+    threshold_value1 = max(0.6, filters.threshold_otsu(img[..., 2]))
+    # exclude the green area first
+    cell_region = np.multiply(
+        cell_pred[..., 2],
+        np.logical_and(
+            np.invert(np.asarray(cell_pred[..., 1] > 0.01)),
+            cell_pred[..., 2] > threshold_value
+        )
+    )
+    cell_region1 = np.multiply(
+        img[..., 2] > threshold_value1,
+        np.invert(np.asarray(cell_pred[..., 1] > 0.01)),
+    )
+    cell_region_eroded = morphology.erosion(
+        cell_region1, morphology.square(25))
+    cell_region_eroded = np.asarray(cell_region_eroded, dtype=np.uint8)
+    cell_region_eroded = ndi.label(cell_region_eroded)[0]
+    remove_size_ratio = int((size / 512)**2)
+    cell_region_eroded = remove_small_objects(
+        cell_region_eroded, 10 * remove_size_ratio)
+    cell_region_eroded = np.asarray(cell_region_eroded > 0, dtype=np.uint8)
+    distance = np.clip(cell_pred[..., 2], threshold_value, cell_pred[..., 2])
+    local_maxi = feature.peak_local_max(
+        cell_region_eroded, indices=False, footprint=np.ones((1, 1)))
+    markers = ndi.label(local_maxi)[0]
+    cell_label = segmentation.watershed(-distance, markers, mask=cell_region)
+    cell_label = remove_small_objects(
+        cell_label, 1000 * remove_size_ratio).astype(np.uint8)
+    selem = disk(6)
+    cell_label = closing(cell_label, selem)
+    # this part is to use green channel, and extend cell label to green channel
+    # benefit is to exclude cells clear on border but without nucleus
+    sk = np.logical_or(
+            cell_label > 0,
+            cell_pred[..., 1] > 0.1,
+        )
+    sk = np.asarray(sk, dtype=np.uint8)
+    cell_label = segmentation.watershed(-sk, cell_label, mask=sk)
+    cell_label = __fill_holes(cell_label)
+    cell_label = measure.label(cell_label)
+    #cell_label = np.asarray(cell_label, dtype=np.uint16)
+
+    return cell_label
