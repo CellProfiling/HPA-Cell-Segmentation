@@ -34,28 +34,36 @@ It is located in ~hpacellseg.cellsegmentator~.
 
   This should be a string containing the path to the nuclei-model weights.
   If the weights do not exist at the path, they will be downloaded to it.
+  
   Defaults to ~./nuclei_model.pth~.
 - cell_model
 
   This should be a string containing the path to the cell-model weights.
   If the weights do not exist at the path, they will be downloaded to it.
+  
   Defaults to ~./cell_model.pth~.
 - scale_factor
 
   This value determines how much the images should be
   scaled before being fed to the models.
   For HPA Cell images, a value of ~0.25~ is good.
+  
   Defaults to ~0.25~.
 - device
 
   Inform Torch which device to put the model on.
   Valid values are 'cpu' or 'cuda' or pointed cuda device like 'cuda:0'.
+  
   Defaults to ~cuda~.
 - padding
 
   If True, add some padding before feeding the images to the neural
   networks. This is not required but can make segmentations,
-  especially cell segmentations, more accurate. Defaults to ~False~.
+  especially cell segmentations, more accurate. 
+  
+  Defaults to ~False~.
+  
+  Note:  If you have issues running the segmentation due to image dimensions, setting ~padding~ to ~True~ may help.
 
 - multi_channel_model
 
@@ -64,6 +72,7 @@ It is located in ~hpacellseg.cellsegmentator~.
   requires you to give the model endoplasmic reticulum images as part
   of the cell segmentation. Otherwise, the version trained with only
   two channels, microtubules and nuclei, will be used.
+  
   Defaults to ~True~.
 
 *** Methods
