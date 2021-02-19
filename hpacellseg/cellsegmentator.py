@@ -244,8 +244,8 @@ class CellSegmentator(object):
             n_prediction = n_prediction[
                 32 : 32 + self.scaled_shape[0], 32 : 32 + self.scaled_shape[1], ...
             ]
+        n_prediction[..., 0] = 0
         if not self.scale_factor == 1:
-            n_prediction[..., 0] = 0
             n_prediction = cv2.resize(
                 n_prediction,
                 (self.target_shape[0], self.target_shape[1]),
