@@ -50,11 +50,10 @@ def label_nuclei(nuclei_pred):
                     considered background, and the values 1-n is the
                     areas of the cells 1-n.
     """
-    img_copy = np.copy(nuclei_pred[..., 2])
     borders = (nuclei_pred[..., 1] > 0.05).astype(np.uint8)
-    m = img_copy * (1 - borders)
+    m = nuclei_pred[..., 2] * (1 - borders)
 
-    img_copy[m <= LOW_THRESHOLD] = 0
+    img_copy = np.zeros_like(nuclei_pred[..., 2])
     img_copy[m > LOW_THRESHOLD] = 1
     img_copy = img_copy.astype(np.bool)
     img_copy = binary_erosion(img_copy)
@@ -64,8 +63,7 @@ def label_nuclei(nuclei_pred):
     img_copy = img_copy.astype(np.uint8)
     markers = measure.label(img_copy).astype(np.uint32)
 
-    mask_img = np.copy(nuclei_pred[..., 2])
-    mask_img[mask_img <= HIGH_THRESHOLD] = 0
+    mask_img = np.zeros_like(nuclei_pred[..., 2])
     mask_img[mask_img > HIGH_THRESHOLD] = 1
     mask_img = mask_img.astype(np.bool)
     mask_img = remove_small_holes(mask_img, 1000)
@@ -80,7 +78,7 @@ def label_nuclei(nuclei_pred):
     return nuclei_label
 
 
-def label_cell(nuclei_pred, cell_pred):
+def label_cell(nuclei_pred, cell_pred, return_nuclei_label=True):
     """Label the cells and the nuclei.
 
     Keyword arguments:
@@ -110,17 +108,15 @@ def label_cell(nuclei_pred, cell_pred):
         threshold_adjustment=0.35,
         small_object_size_cutoff=10,
     ):
-        img_copy = np.copy(mask_img)
+        img_copy = np.zeros_like(mask_img)
         m = seeds * border_img  # * dt
-        img_copy[m <= threshold + threshold_adjustment] = 0
         img_copy[m > threshold + threshold_adjustment] = 1
         img_copy = img_copy.astype(np.bool)
         img_copy = remove_small_objects(img_copy, small_object_size_cutoff).astype(
             np.uint8
         )
 
-        mask_img[mask_img <= threshold] = 0
-        mask_img[mask_img > threshold] = 1
+        mask_img = np.where(mask_img <= threshold, 0, 1)
         mask_img = mask_img.astype(np.bool)
         mask_img = remove_small_holes(mask_img, 1000)
         mask_img = remove_small_objects(mask_img, 8).astype(np.uint8)
@@ -175,6 +171,8 @@ def label_cell(nuclei_pred, cell_pred):
     cell_label = remove_small_objects(cell_label, 5500)
     cell_label = measure.label(cell_label)
     cell_label = np.asarray(cell_label, dtype=np.uint16)
+    if not return_nuclei_label:
+        return cell_label
     nuclei_label = np.multiply(cell_label > 0, nuclei_label) > 0
     nuclei_label = measure.label(nuclei_label)
     nuclei_label = remove_small_objects(nuclei_label, 2500)
