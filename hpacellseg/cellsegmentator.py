@@ -188,7 +188,8 @@ class CellSegmentator(object):
 
         def _preprocess(images):
             if isinstance(images[0], str):
-                images = [imageio.imread(image_path) for image_path in images]
+                raise NotImplementedError('Currently the model requires images as numpy arrays, not paths.')
+                # images = [imageio.imread(image_path) for image_path in images]
             self.target_shapes = [image.shape for image in images]
             images = [cv2.resize(image, (self.model_width_height, self.model_width_height))
                       if image.shape[0] != self.model_width_height or image.shape[
