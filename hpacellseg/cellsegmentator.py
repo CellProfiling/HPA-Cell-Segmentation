@@ -215,7 +215,7 @@ class CellSegmentator(object):
         preprocessed_imgs = _preprocess(images)
         predictions = _segment_helper(preprocessed_imgs)
         predictions = predictions.to("cpu").numpy()
-        predictions = [util.img_as_ubyte(self._restore_scaling(pred, target_shape))
+        predictions = [self._restore_scaling(util.img_as_ubyte(pred), target_shape)
                        for pred, target_shape in zip(predictions, self.target_shapes)]
         return predictions
 
@@ -291,6 +291,6 @@ class CellSegmentator(object):
         preprocessed_imgs = _preprocess(images)
         predictions = _segment_helper(preprocessed_imgs)
         predictions = predictions.to("cpu").numpy()
-        predictions = [util.img_as_ubyte(self._restore_scaling(pred, target_shape))
+        predictions = [self._restore_scaling(util.img_as_ubyte(pred), target_shape)
                        for pred, target_shape in zip(predictions, self.target_shapes)]
         return predictions
