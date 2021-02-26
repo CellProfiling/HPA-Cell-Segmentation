@@ -231,7 +231,7 @@ class CellSegmentator(object):
         n_prediction = cv2.resize(
             n_prediction,
             (target_shape[0], target_shape[1]),
-            interpolation=cv2.INTER_AREA,
+            interpolation=cv2.INTER_NEAREST,
         )
         return n_prediction
 
