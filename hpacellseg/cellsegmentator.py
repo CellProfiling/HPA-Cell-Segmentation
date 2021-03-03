@@ -27,6 +27,7 @@ class CellSegmentator(object):
             model_width_height=512,
             device="cuda",
             multi_channel_model=True,
+            return_without_scale_restore=False
     ):
         """Class for segmenting nuclei and whole cells from confocal microscopy images.
 
@@ -98,6 +99,7 @@ class CellSegmentator(object):
             cell_model = torch.load(cell_model, map_location=torch.device(self.device))
         self.cell_model = cell_model.to(self.device)
         self.model_width_height = model_width_height
+        self.return_without_scale_restore = return_without_scale_restore
 
     def _image_conversion(self, images):
         """Convert/Format images to RGB image arrays list for cell predictions.
@@ -228,11 +230,12 @@ class CellSegmentator(object):
         """
         n_prediction = n_prediction.transpose([1, 2, 0])
         n_prediction[..., 0] = 0
-        n_prediction = cv2.resize(
-            n_prediction,
-            (target_shape[0], target_shape[1]),
-            interpolation=cv2.INTER_NEAREST,
-        )
+        if not self.return_without_scale_restore:
+            n_prediction = cv2.resize(
+                n_prediction,
+                (target_shape[0], target_shape[1]),
+                interpolation=cv2.INTER_NEAREST,
+            )
         return n_prediction
 
     def pred_cells(self, images, precombined=False):
