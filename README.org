@@ -137,6 +137,8 @@ The two available post-processing functions are located in the ~hpacellseg.utils
       CELL_MODEL,
       scale_factor=0.25,
       device="cuda",
+      # NOTE: setting padding=True seems to solve most issues that have been encountered
+      #       during our single cell Kaggle challenge.
       padding=False,
       multi_channel_model=True,
   )
