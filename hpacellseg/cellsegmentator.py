@@ -127,8 +127,10 @@ class CellSegmentator(object):
         """
         microtubule_imgs, er_imgs, nuclei_imgs = images
         if self.multi_channel_model:
-            if not isinstance(er_imgs, list):
-                raise ValueError("Please speicify the image path(s) for er channels!")
+            if er_imgs is None:
+                raise ValueError("Please specify the image path(s) for er channels!")
+            
+            assert isinstance(er_imgs, list)
         else:
             if not er_imgs is None:
                 raise ValueError(
