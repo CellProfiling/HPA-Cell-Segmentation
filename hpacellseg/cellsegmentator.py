@@ -8,10 +8,11 @@ import numpy as np
 import torch
 import torch.nn
 import torch.nn.functional as F
+from skimage import util
+
 from hpacellseg.constants import (MULTI_CHANNEL_CELL_MODEL_URL,
                                   NUCLEI_MODEL_URL, TWO_CHANNEL_CELL_MODEL_URL)
 from hpacellseg.utils import download_with_url
-from skimage import transform, util
 
 NORMALIZE = {"mean": [124 / 255, 117 / 255, 104 / 255], "std": [1 / (0.0167 * 255)] * 3}
 
@@ -20,13 +21,13 @@ class CellSegmentator(object):
     """Uses pretrained DPN-Unet models to segment cells from images."""
 
     def __init__(
-        self,
-        nuclei_model="./nuclei_model.pth",
-        cell_model="./cell_model.pth",
-        scale_factor=0.25,
-        device="cuda",
-        padding=False,
-        multi_channel_model=True,
+            self,
+            nuclei_model="./nuclei_model.pth",
+            cell_model="./cell_model.pth",
+            model_width_height=512,
+            device="cuda",
+            multi_channel_model=True,
+            return_without_scale_restore=False
     ):
         """Class for segmenting nuclei and whole cells from confocal microscopy images.
 
@@ -52,15 +53,10 @@ class CellSegmentator(object):
                       path to a file which contains such a model.
                       The cell_model argument can be None if only nuclei
                       are to be segmented (default: './cell_model.pth').
-        scale_factor -- How much to scale images before they are fed to
-                        segmentation models. Segmentations will be scaled back
-                        up by 1/scale_factor to match the original image
-                        (default: 0.25).
+        model_width_height --
         device -- The device on which to run the models.
                   This should either be 'cpu' or 'cuda' or pointed cuda
                   device like 'cuda:0' (default: 'cuda').
-        padding -- Whether to add padding to the images before feeding the
-                   images to the network. (default: False).
         multi_channel_model -- Control whether to use the 3-channel cell model or not.
                                If True, use the 3-channel model, otherwise use the
                                2-channel version (default: True).
@@ -102,8 +98,8 @@ class CellSegmentator(object):
                     download_with_url(TWO_CHANNEL_CELL_MODEL_URL, cell_model)
             cell_model = torch.load(cell_model, map_location=torch.device(self.device))
         self.cell_model = cell_model.to(self.device)
-        self.scale_factor = scale_factor
-        self.padding = padding
+        self.model_width_height = model_width_height
+        self.return_without_scale_restore = return_without_scale_restore
 
     def _image_conversion(self, images):
         """Convert/Format images to RGB image arrays list for cell predictions.
@@ -194,27 +190,20 @@ class CellSegmentator(object):
         predictions -- A list of predictions of nuclei segmentation for each nuclei image.
         """
 
-        def _preprocess(image):
-            if isinstance(image, str):
-                image = imageio.imread(image)
-            self.target_shape = image.shape
-            if len(image.shape) == 2:
-                image = np.dstack((image, image, image))
-            image = transform.rescale(image, self.scale_factor, multichannel=True)
-            nuc_image = np.dstack((image[..., 2], image[..., 2], image[..., 2]))
-            if self.padding:
-                rows, cols = nuc_image.shape[:2]
-                self.scaled_shape = rows, cols
-                nuc_image = cv2.copyMakeBorder(
-                    nuc_image,
-                    32,
-                    (32 - rows % 32),
-                    32,
-                    (32 - cols % 32),
-                    cv2.BORDER_REFLECT,
-                )
-            nuc_image = nuc_image.transpose([2, 0, 1])
-            return nuc_image
+        def _preprocess(images):
+            if isinstance(images[0], str):
+                raise NotImplementedError('Currently the model requires images as numpy arrays, not paths.')
+                # images = [imageio.imread(image_path) for image_path in images]
+            self.target_shapes = [image.shape for image in images]
+            images = [cv2.resize(image, (self.model_width_height, self.model_width_height))
+                      if image.shape[0] != self.model_width_height or image.shape[
+                1] != self.model_width_height else image
+                      for image in images]
+
+            nuc_images = np.array([np.dstack((image[..., 2], image[..., 2], image[..., 2])) if len(image.shape) >= 3
+                                   else np.dstack((image, image, image)) for image in images])
+            nuc_images = nuc_images.transpose([0, 3, 1, 2])
+            return nuc_images
 
         def _segment_helper(imgs):
             with torch.no_grad():
@@ -228,30 +217,26 @@ class CellSegmentator(object):
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
-        preprocessed_imgs = map(_preprocess, images)
-        predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
-        predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
-        predictions = map(util.img_as_ubyte, predictions)
-        predictions = list(map(self._restore_scaling_padding, predictions))
+        preprocessed_imgs = _preprocess(images)
+        predictions = _segment_helper(preprocessed_imgs)
+        predictions = predictions.to("cpu").numpy()
+        predictions = [self._restore_scaling(util.img_as_ubyte(pred), target_shape)
+                       for pred, target_shape in zip(predictions, self.target_shapes)]
         return predictions
 
-    def _restore_scaling_padding(self, n_prediction):
+    def _restore_scaling(self, n_prediction, target_shape):
         """Restore an image from scaling and padding.
 
         This method is intended for internal use.
         It takes the output from the nuclei model as input.
         """
         n_prediction = n_prediction.transpose([1, 2, 0])
-        if self.padding:
-            n_prediction = n_prediction[
-                32 : 32 + self.scaled_shape[0], 32 : 32 + self.scaled_shape[1], ...
-            ]
         n_prediction[..., 0] = 0
-        if not self.scale_factor == 1:
+        if not self.return_without_scale_restore:
             n_prediction = cv2.resize(
                 n_prediction,
-                (self.target_shape[0], self.target_shape[1]),
-                interpolation=cv2.INTER_AREA,
+                (target_shape[0], target_shape[1]),
+                interpolation=cv2.INTER_NEAREST,
             )
         return n_prediction
 
@@ -284,24 +269,17 @@ class CellSegmentator(object):
         predictions -- a list of predictions of cell segmentations.
         """
 
-        def _preprocess(image):
-            self.target_shape = image.shape
-            if not len(image.shape) == 3:
-                raise ValueError("image should has 3 channels")
-            cell_image = transform.rescale(image, self.scale_factor, multichannel=True)
-            if self.padding:
-                rows, cols = cell_image.shape[:2]
-                self.scaled_shape = rows, cols
-                cell_image = cv2.copyMakeBorder(
-                    cell_image,
-                    32,
-                    (32 - rows % 32),
-                    32,
-                    (32 - cols % 32),
-                    cv2.BORDER_REFLECT,
-                )
-            cell_image = cell_image.transpose([2, 0, 1])
-            return cell_image
+        def _preprocess(images):
+            self.target_shapes = [image.shape for image in images]
+            for image in images:
+                if not len(image.shape) == 3:
+                    raise ValueError("image should has 3 channels")
+            images = np.array([cv2.resize(image, (self.model_width_height, self.model_width_height))
+                               if image.shape[0] != self.model_width_height or image.shape[1] != self.model_width_height
+                               else image
+                               for image in images])
+            cell_images = images.transpose([0, 3, 1, 2])
+            return cell_images
 
         def _segment_helper(imgs):
             with torch.no_grad():
@@ -310,17 +288,15 @@ class CellSegmentator(object):
                 imgs = torch.tensor(imgs).float()
                 imgs = imgs.to(self.device)
                 imgs = imgs.sub_(mean[:, None, None]).div_(std[:, None, None])
-
                 imgs = self.cell_model(imgs)
                 imgs = F.softmax(imgs, dim=1)
                 return imgs
 
         if not precombined:
             images = self._image_conversion(images)
-        preprocessed_imgs = map(_preprocess, images)
-        predictions = map(lambda x: _segment_helper([x]), preprocessed_imgs)
-        predictions = map(lambda x: x.to("cpu").numpy()[0], predictions)
-        predictions = map(self._restore_scaling_padding, predictions)
-        predictions = list(map(util.img_as_ubyte, predictions))
-
+        preprocessed_imgs = _preprocess(images)
+        predictions = _segment_helper(preprocessed_imgs)
+        predictions = predictions.to("cpu").numpy()
+        predictions = [self._restore_scaling(util.img_as_ubyte(pred), target_shape)
+                       for pred, target_shape in zip(predictions, self.target_shapes)]
         return predictions
