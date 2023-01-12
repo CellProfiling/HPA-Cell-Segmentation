@@ -8,10 +8,11 @@ import numpy as np
 import torch
 import torch.nn
 import torch.nn.functional as F
+from skimage import transform, util
+
 from hpacellseg.constants import (MULTI_CHANNEL_CELL_MODEL_URL,
                                   NUCLEI_MODEL_URL, TWO_CHANNEL_CELL_MODEL_URL)
 from hpacellseg.utils import download_with_url
-from skimage import transform, util
 
 NORMALIZE = {"mean": [124 / 255, 117 / 255, 104 / 255], "std": [1 / (0.0167 * 255)] * 3}
 
@@ -129,7 +130,7 @@ class CellSegmentator(object):
         if self.multi_channel_model:
             if er_imgs is None:
                 raise ValueError("Please specify the image path(s) for er channels!")
-            
+
             assert isinstance(er_imgs, list)
         else:
             if not er_imgs is None:
@@ -307,7 +308,7 @@ class CellSegmentator(object):
             with torch.no_grad():
                 mean = torch.as_tensor(NORMALIZE["mean"], device=self.device)
                 std = torch.as_tensor(NORMALIZE["std"], device=self.device)
-                imgs = torch.tensor(imgs).float()
+                imgs = torch.tensor(np.array(imgs)).float()
                 imgs = imgs.to(self.device)
                 imgs = imgs.sub_(mean[:, None, None]).div_(std[:, None, None])
 
