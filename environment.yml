@@ -1,0 +1,17 @@
+name: data-prep
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - click
+  - cudatoolkit=11.2
+  - imageio
+  - microfilm
+  - numpy==1.19.5
+  - pillow==6.2.1
+  - python=3.8
+  - pytorch==1.9.1=cuda112py38h4f2a933_3
+  - scikit-image
+  - scipy
+  - torchvision==0.10.1
+prefix: /home/ishang/miniconda3/envs/data-prep
