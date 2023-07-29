@@ -1,4 +1,4 @@
-name: data-prep-1
+name: data-prep
 channels:
   - conda-forge
   - defaults
