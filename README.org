@@ -12,16 +12,9 @@ Tools for running cell segmentation using pretrained U-Nets.
 The following steps will install =hpacellseg= to your local =pip=
 installations folder together with all necessary dependencies.
 
-- =conda env create -f environment.yml=
+- =git clone https://github.com/CellProfiling/HPA-Cell-Segmentation.git=
 - =cd HPA-Cell-Segmentation=
 - =sh install.sh=
-
-Note that it can be nice to run the pip steps in the install script yourself,
-trying them with the --dry-run flag to make sure they won't overwrite the
-desired torch and numpy versions. The torch and cuda versions should be changed
-for the needed setup, we just can't have torch higher than 1.9.1. Using =conda
-search pytorch= you can find the right property string to add after the version
-number in the environment yaml.
 
 You can verify the installation has worked by running
 #+begin_example
@@ -29,6 +22,17 @@ python -c 'import hpacellseg'
 #+end_example
 in a terminal.
 
+If you want to use anaconda/miniconda (env tested on a100 gpu):
+
+- =conda env create -f environment.yml=
+- =conda activate hpacellseg=
+
+Note that it can be nice to run the pip steps in the install script yourself,
+trying them with the --dry-run flag to make sure they won't overwrite the
+desired torch and numpy versions. The torch and cuda versions should be changed
+for the needed setup, we just can't have torch higher than 1.9.1. Using =conda
+search pytorch= you can find the right property string to add after the version
+number in the environment yaml.
 
 * Usage
 ** CellSegmentator class
@@ -130,6 +134,7 @@ The two available post-processing functions are located in the ~hpacellseg.utils
 #+begin_src python
   import hpacellseg.cellsegmentator as cellsegmentator
   from hpacellseg.utils import label_cell, label_nuclei
+  from imageio import imwrite
 
   # Assuming that there are images in the current folder with the
   # following names.
@@ -151,13 +156,19 @@ The two available post-processing functions are located in the ~hpacellseg.utils
       multi_channel_model=True,
   )
 
-  # For nuclei
+  # For nuclei: taking in nuclei channels as inputs
   nuc_segmentations = segmentator.pred_nuclei(images[2])
 
-  # For full cells
+  # For full cells: taking in 3 channels as inputs
   cell_segmentations = segmentator.pred_cells(images)
 
-  # post-processing
+  # post-processing nuclei mask
   nuclei_mask = label_nuclei(nuc_segmentations[0])
-  nuclei_mask, cell_mask = label_cell(nuc_segmentations[1], cell_segmentations[1])
+
+  # post-processing nuclei and cell mask
+  for i, (nuc_segmentation, cell_segmentation) in enumerate(zip(nuc_segmentations, cell_segmentations)):
+      nuclei_mask, cell_mask = label_cell(nuc_segmentation, cell_segmentation)
+      # Save these masks in local folder
+      imwrite(f"nucleimask_{i}.png", nuclei_mask)
+      imwrite(f"cellmask_{i}.png", cell_mask)
 #+end_src
