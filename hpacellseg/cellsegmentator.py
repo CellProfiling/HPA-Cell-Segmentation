@@ -221,7 +221,7 @@ class CellSegmentator(object):
             with torch.no_grad():
                 mean = torch.as_tensor(NORMALIZE["mean"], device=self.device)
                 std = torch.as_tensor(NORMALIZE["std"], device=self.device)
-                imgs = torch.tensor(imgs).float()
+                imgs = torch.tensor(np.array(imgs)).float()
                 imgs = imgs.to(self.device)
                 imgs = imgs.sub_(mean[:, None, None]).div_(std[:, None, None])
 
